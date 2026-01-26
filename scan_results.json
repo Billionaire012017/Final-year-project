@@ -1,25 +1,80 @@
 {
-    "scan_id": "a2c693c1-1fc8-42a4-ad35-1bd8c8df9ca6",
-    "timestamp": "2026-01-26T06:42:22.966489",
+    "scan_id": "65c611e4-6c1e-4264-9d1d-05104d4e7637",
+    "timestamp": "2026-01-26T09:13:30.678549",
     "status": "SUCCESS",
     "vulnerabilities": [
         {
-            "id": "cbac6c80-d624-4e8a-9922-1fb4f60a8a71",
+            "id": "85d58e79-04e6-4b7b-84bb-dc8e2d5dd9c4",
+            "name": "B404: blacklist",
+            "description": "Consider possible security implications associated with the subprocess module.",
+            "severity": "LOW",
+            "file_path": ".\\scan_engine\\scanners\\bandit_scanner.py",
+            "line_number": 2,
+            "scanner_name": "bandit",
+            "cwe_id": "78",
+            "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/blacklists/blacklist_imports.html#b404-import-subprocess"
+        },
+        {
+            "id": "d75e72aa-7b8d-4a3d-8d7d-871b89c25d12",
+            "name": "B607: start_process_with_partial_path",
+            "description": "Starting a process with a partial executable path",
+            "severity": "LOW",
+            "file_path": ".\\scan_engine\\scanners\\bandit_scanner.py",
+            "line_number": 24,
+            "scanner_name": "bandit",
+            "cwe_id": "78",
+            "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/plugins/b607_start_process_with_partial_path.html"
+        },
+        {
+            "id": "2e80616d-7c9e-42b8-ae9f-081d221b8e6f",
+            "name": "B603: subprocess_without_shell_equals_true",
+            "description": "subprocess call - check for execution of untrusted input.",
+            "severity": "LOW",
+            "file_path": ".\\scan_engine\\scanners\\bandit_scanner.py",
+            "line_number": 24,
+            "scanner_name": "bandit",
+            "cwe_id": "78",
+            "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html"
+        },
+        {
+            "id": "83ad7cfb-d904-4935-8192-a617df36f79e",
+            "name": "B404: blacklist",
+            "description": "Consider possible security implications associated with the subprocess module.",
+            "severity": "LOW",
+            "file_path": ".\\scan_engine\\scanners\\semgrep_scanner.py",
+            "line_number": 2,
+            "scanner_name": "bandit",
+            "cwe_id": "78",
+            "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/blacklists/blacklist_imports.html#b404-import-subprocess"
+        },
+        {
+            "id": "b3149207-030b-4064-a431-39043dcb65f3",
+            "name": "B603: subprocess_without_shell_equals_true",
+            "description": "subprocess call - check for execution of untrusted input.",
+            "severity": "LOW",
+            "file_path": ".\\scan_engine\\scanners\\semgrep_scanner.py",
+            "line_number": 29,
+            "scanner_name": "bandit",
+            "cwe_id": "78",
+            "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/plugins/b603_subprocess_without_shell_equals_true.html"
+        },
+        {
+            "id": "64bf2f29-52f2-44d5-8b07-7aaa13d311e4",
             "name": "B105: hardcoded_password_string",
             "description": "Possible hardcoded password: 'supersecret123'",
             "severity": "LOW",
-            "file_path": "test_data\\vulnerable.py",
+            "file_path": ".\\test_data\\vulnerable.py",
             "line_number": 5,
             "scanner_name": "bandit",
             "cwe_id": "259",
             "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html"
         },
         {
-            "id": "24bcf812-031c-4bb4-b190-76c843cded09",
+            "id": "5df0b10b-50c5-45b6-9232-86d5681b05f8",
             "name": "B307: blacklist",
             "description": "Use of possibly insecure function - consider using safer ast.literal_eval.",
             "severity": "MEDIUM",
-            "file_path": "test_data\\vulnerable.py",
+            "file_path": ".\\test_data\\vulnerable.py",
             "line_number": 10,
             "scanner_name": "bandit",
             "cwe_id": "78",
@@ -27,8 +82,8 @@
         }
     ],
     "metadata": {
-        "target_path": "test_data",
+        "target_path": ".",
         "scan_type": "manual",
-        "scanner_count": 2
+        "scanner_count": 1
     }
 }

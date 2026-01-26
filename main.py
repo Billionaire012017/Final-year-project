@@ -7,7 +7,7 @@ app = typer.Typer()
 
 @app.command()
 def scan(
-    path: str = typer.Option(..., "--path", "-p", help="Path to the source code to scan"),
+    path: str = typer.Option(".", "--path", "-p", help="Path to the source code to scan"),
     type: str = typer.Option("manual", "--type", "-t", help="Type of scan (manual/ci)"),
     output: str = typer.Option("scan_results.json", "--output", "-o", help="Output file for results")
 ):
