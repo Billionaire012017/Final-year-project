@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecLAB Alpha v3.0 | Central Defense HUD</title>
+    <title>SecLAB Alpha v4.0 | Central Defense HUD</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -22,6 +22,7 @@
         body {
             font-family: 'Space Grotesk', sans-serif;
             background-color: var(--bg-dark);
+            color: #94a3b8;
         }
 
         .mono {
@@ -29,7 +30,7 @@
         }
 
         .glass {
-            background: rgba(8, 14, 38, 0.8);
+            background: rgba(8, 14, 38, 0.85);
             backdrop-filter: blur(24px);
             border: 1px solid rgba(14, 165, 233, 0.1);
         }
@@ -62,26 +63,7 @@
         }
 
         .glow-cyan {
-            box-shadow: 0 0 20px rgba(14, 165, 233, 0.2);
-        }
-
-        .error-overlay {
-            background: rgba(239, 68, 68, 0.15);
-            border: 1px solid var(--neon-red);
-        }
-
-        .marquee {
-            animation: marquee 40s linear infinite;
-        }
-
-        @keyframes marquee {
-            0% {
-                transform: translateX(100%);
-            }
-
-            100% {
-                transform: translateX(-100%);
-            }
+            box-shadow: 0 0 30px rgba(14, 165, 233, 0.15);
         }
 
         .matrix-grid {
@@ -91,7 +73,7 @@
             background-size: 40px 40px;
         }
 
-        .loading-shimmer {
+        .shimmer {
             background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.1), transparent);
             background-size: 200% 100%;
             animation: shimmer 2s infinite;
@@ -106,713 +88,6 @@
                 background-position: -200% 0;
             }
         }
-    </style>
-</head>
-
-<body class="text-slate-400 overflow-hidden select-none matrix-grid">
-
-    <!-- CONNECTION LOST OVERLAY -->
-    <div id="conn-lost"
-        class="fixed inset-0 z-[200] bg-slate-950/90 backdrop-blur-xl hidden flex flex-col items-center justify-center p-10 text-center">
-        <div class="p-6 bg-red-500/10 border border-red-500 rounded-full mb-8 animate-pulse">
-            <i data-lucide="wifi-off" class="text-red-500 w-12 h-12"></i>
-        </div>
-        <h2 class="text-3xl font-bold text-white mb-2 tracking-tighter uppercase">Signal Loss: Core Unreachable</h2>
-        <p class="text-slate-500 max-w-sm">Autonomous link to SecLAB Core was severed. Attempting emergency
-            reconnection...</p>
-        <div class="mt-8 flex gap-4">
-            <button onclick="window.location.reload()"
-                class="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2 rounded-full text-sm font-bold transition">Hard
-                Refresh</button>
-        </div>
-    </div>
-
-    <!-- MAIN INTERFACE -->
-    <div class="flex h-screen w-full relative">
-
-        <!-- SIDENAV -->
-        <aside class="w-72 glass border-r border-slate-800 flex flex-col z-50">
-            <div class="p-10 border-b border-slate-800/50">
-                <div class="flex items-center gap-4">
-                    <div
-                        class="w-12 h-12 glass rounded-2xl flex items-center justify-center border-sky-500/30 glow-cyan">
-                        <i data-lucide="shield-alert" class="text-sky-500 w-6 h-6"></i>
-                    </div>
-                    <div>
-                        <h1 class="text-white font-extrabold text-xl tracking-tighter">SecLAB <span
-                                class="text-sky-500">α</span></h1>
-                        <p class="text-[9px] font-bold text-slate-600 uppercase tracking-[0.2em] mt-0.5">Autonomous
-                            Sentinel</p>
-                    </div>
-                </div>
-            </div>
-
-            <nav class="flex-1 p-6 space-y-1 overflow-y-auto overflow-x-hidden custom-scroll">
-                <p class="px-4 text-[10px] font-extrabold text-slate-700 uppercase tracking-[0.25em] mb-4">Command
-                    Center</p>
-                <button onclick="switchTab('dashboard')" id="nav-dashboard"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group sidebar-active">
-                    <i data-lucide="grid" class="w-4 h-4 group-hover:text-sky-400"></i> Dashboard Overview
-                </button>
-                <button onclick="switchTab('vulnerabilities')" id="nav-vulnerabilities"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group">
-                    <i data-lucide="layers" class="w-4 h-4 group-hover:text-sky-400"></i> Threat Inventory
-                </button>
-                <button onclick="switchTab('patch-lab')" id="nav-patch-lab"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group">
-                    <i data-lucide="wand-2" class="w-4 h-4 group-hover:text-sky-400"></i> AI Patch Lab
-                </button>
-
-                <p class="px-4 text-[10px] font-extrabold text-slate-700 uppercase tracking-[0.25em] mt-10 mb-4">Core
-                    Analytics</p>
-                <button onclick="switchTab('risk')" id="nav-risk"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group">
-                    <i data-lucide="target" class="w-4 h-4 group-hover:text-sky-400"></i> Risk & Confidence
-                </button>
-                <button onclick="switchTab('logic')" id="nav-logic"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group">
-                    <i data-lucide="webhook" class="w-4 h-4 group-hover:text-sky-400"></i> Neural Logic Flow
-                </button>
-                <button onclick="switchTab('forensics')" id="nav-forensics"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group">
-                    <i data-lucide="flask-conical" class="w-4 h-4 group-hover:text-sky-400"></i> Code Forensics
-                </button>
-
-                <p class="px-4 text-[10px] font-extrabold text-slate-700 uppercase tracking-[0.25em] mt-10 mb-4">System
-                    Kernel</p>
-                <button onclick="switchTab('engine')" id="nav-engine"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group">
-                    <i data-lucide="cpu" class="w-4 h-4 group-hover:text-sky-400"></i> Scan Engine Specs
-                </button>
-                <button onclick="switchTab('audit')" id="nav-audit"
-                    class="nav-btn w-full flex items-center gap-3 px-4 py-3.5 rounded-xl hover:text-white transition group">
-                    <i data-lucide="terminal" class="w-4 h-4 group-hover:text-sky-400"></i> Audit Stream
-                </button>
-            </nav>
-
-            <div class="p-6">
-                <div class="glass p-5 rounded-2xl border border-sky-900/40 relative group overflow-hidden">
-                    <div class="absolute inset-0 loading-shimmer opacity-30"></div>
-                    <div class="flex items-center gap-3 mb-3 relative z-10">
-                        <div class="w-2.5 h-2.5 rounded-full bg-green-500 glow-cyan"></div>
-                        <span class="text-[10px] font-bold text-white uppercase tracking-widest">Core Active</span>
-                    </div>
-                    <div class="flex justify-between items-center text-[9px] font-mono text-slate-500 relative z-10">
-                        <span>DB: PERSISTENT</span>
-                        <span id="uptime-val">UP: 0h 0m</span>
-                    </div>
-                </div>
-            </div>
-        </aside>
-
-        <!-- CONTENT AREA -->
-        <main class="flex-1 flex flex-col min-w-0">
-
-            <!-- TOP BAR -->
-            <header
-                class="h-24 glass border-b border-slate-800/50 flex items-center justify-between px-12 relative z-40">
-                <div class="flex items-center gap-6">
-                    <div class="w-1.5 h-8 bg-sky-500 rounded-full glow-cyan"></div>
-                    <div>
-                        <h2 id="tab-label" class="text-2xl font-black text-white tracking-widest uppercase italic">
-                            Operational_HUD</h2>
-                        <div class="flex gap-4 mt-1 text-[10px] font-bold text-slate-600 uppercase tracking-widest">
-                            <span id="breadcrumb">Command Hub > Dashboard</span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex items-center gap-6">
-                    <button onclick="runDiagnosticScan()"
-                        class="group relative px-8 py-3 bg-sky-600/10 border border-sky-500/30 rounded-2xl overflow-hidden transition-all hover:bg-sky-600/20 active:scale-95">
-                        <div class="relative z-10 flex items-center gap-3">
-                            <i data-lucide="activity" class="text-sky-400 w-4 h-4 group-hover:animate-spin"></i>
-                            <span class="text-xs font-bold text-sky-400 uppercase tracking-widest">Trigger
-                                Diagnostic</span>
-                        </div>
-                    </button>
-                    <div
-                        class="w-10 h-10 glass rounded-full flex items-center justify-center border-slate-700/50 cursor-pointer hover:bg-slate-800 transition">
-                        <i data-lucide="bell" class="w-4 h-4 text-slate-400"></i>
-                    </div>
-                </div>
-            </header>
-
-            <!-- TABS -->
-            <div class="flex-1 overflow-y-auto p-12 space-y-12 custom-scroll relative bg-slate-950/20">
-
-                <!-- DASHBOARD -->
-                <section id="tab-dashboard" class="tab-content active space-y-12">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                        <div
-                            class="lg:col-span-2 glass p-10 rounded-[2.5rem] flex items-center gap-10 relative overflow-hidden group">
-                            <div
-                                class="absolute -right-10 -bottom-10 opacity-5 transition-transform group-hover:scale-110">
-                                <i data-lucide="zap" class="w-64 h-64 text-sky-500"></i>
-                            </div>
-                            <div
-                                class="shrink-0 w-32 h-32 rounded-full border-[10px] border-slate-800 flex items-center justify-center relative shadow-[inset_0_0_40px_rgba(14,165,233,0.1)]">
-                                <span class="text-3xl font-black text-white glow-text" id="dash-health">--</span>
-                                <svg class="absolute inset-0 -rotate-90 w-32 h-32">
-                                    <circle cx="64" cy="64" r="58" fill="transparent" stroke="currentColor"
-                                        stroke-width="10" class="text-sky-500/20"></circle>
-                                    <circle id="health-circle" cx="64" cy="64" r="58" fill="transparent"
-                                        stroke="currentColor" stroke-width="10" stroke-dasharray="364.4"
-                                        stroke-dashoffset="364.4" class="text-sky-500 transition-all duration-1000">
-                                    </circle>
-                                </svg>
-                            </div>
-                            <div>
-                                <p class="text-[10px] font-black text-sky-500 uppercase tracking-[0.4em] mb-2">Defense
-                                    Reliability Index</p>
-                                <h3 class="text-white text-3xl font-extrabold tracking-tight">System Integrity: Stable
-                                </h3>
-                                <p class="text-slate-500 text-sm mt-3 leading-relaxed">Cross-referenced against 450+
-                                    security rule-signatures across the autonomous kernel.</p>
-                            </div>
-                        </div>
-                        <div class="glass p-10 rounded-[2.5rem] flex flex-col justify-center">
-                            <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-4">Threat
-                                Density</p>
-                            <h2 class="text-5xl font-black text-white glow-text" id="dash-total">--</h2>
-                            <div class="mt-4 flex gap-2">
-                                <span
-                                    class="px-2 py-0.5 bg-red-500/10 text-red-500 text-[8px] font-bold rounded">LIVE_ALERTS</span>
-                            </div>
-                        </div>
-                        <div class="glass p-10 rounded-[2.5rem] flex flex-col justify-center">
-                            <p class="text-[10px] font-bold text-slate-600 uppercase tracking-widest mb-4">Neural
-                                Accuracy</p>
-                            <h2 class="text-5xl font-black text-green-400 glow-text" id="dash-rate">--%</h2>
-                            <div class="mt-4 flex gap-2">
-                                <span
-                                    class="px-2 py-0.5 bg-green-500/10 text-green-500 text-[8px] font-bold rounded">AI_TRUSTED</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                        <div class="lg:col-span-2 glass rounded-[2.5rem] p-10">
-                            <div class="flex justify-between items-center mb-10">
-                                <h4 class="text-white font-black text-sm uppercase tracking-widest">Global Attack Vector
-                                    Map</h4>
-                                <div class="flex gap-4">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-2 h-2 rounded-full bg-red-500"></div> <span
-                                            class="text-[10px] font-bold">SQL_INJ</span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-2 h-2 rounded-full bg-amber-500"></div> <span
-                                            class="text-[10px] font-bold">XSS</span>
-                                    </div>
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-2 h-2 rounded-full bg-sky-500"></div> <span
-                                            class="text-[10px] font-bold">RCE</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="h-80 flex items-center justify-center relative">
-                                <canvas id="mainChart"></canvas>
-                            </div>
-                        </div>
-                        <div class="glass rounded-[2.5rem] p-10 flex flex-col">
-                            <h4 class="text-white font-black text-sm uppercase tracking-widest mb-10">Sentient Log Flow
-                            </h4>
-                            <div id="dash-activity" class="flex-1 space-y-4 overflow-y-auto custom-scroll pr-2">
-                                <!-- Dynamic Activity -->
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- THREAT INVENTORY -->
-                <section id="tab-vulnerabilities" class="tab-content space-y-10">
-                    <div class="flex justify-between items-end">
-                        <h3 class="text-white font-black text-3xl tracking-tighter uppercase">Signature Database</h3>
-                        <div class="flex gap-4">
-                            <input type="text" placeholder="Grep signatures..."
-                                class="bg-slate-900/50 border border-slate-700 px-6 py-2.5 rounded-2xl text-xs text-white focus:outline-none focus:border-sky-500 transition-all w-80">
-                            <button
-                                class="bg-slate-800 hover:bg-slate-700 text-white px-6 py-2.5 rounded-2xl text-xs font-bold transition">Filter:
-                                Active</button>
-                        </div>
-                    </div>
-                    <div class="glass rounded-[2.5rem] overflow-hidden border border-slate-800">
-                        <table class="w-full text-left">
-                            <thead
-                                class="bg-slate-900/50 text-[10px] font-black text-sky-500 uppercase tracking-[0.2em] border-b border-slate-800/50">
-                                <tr>
-                                    <th class="px-10 py-6">Unique ID / Signature</th>
-                                    <th class="px-10 py-6">Operational Context</th>
-                                    <th class="px-10 py-6 text-center">Crisis Level</th>
-                                    <th class="px-10 py-6 text-center">Lifecycle</th>
-                                    <th class="px-10 py-6 text-right">Laboratory Link</th>
-                                </tr>
-                            </thead>
-                            <tbody id="vuln-list-body" class="divide-y divide-slate-800 text-sm">
-                                <!-- Inventory Items -->
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
-
-                <!-- AI PATCH LAB (EXTENDED) -->
-                <section id="tab-patch-lab" class="tab-content h-[calc(100vh-280px)]">
-                    <div class="grid grid-cols-12 gap-8 h-full">
-                        <div class="col-span-3 glass rounded-[2.5rem] p-6 flex flex-col overflow-hidden">
-                            <div class="px-2 mb-6">
-                                <h4 class="text-white font-black text-xs uppercase tracking-widest">Pending Remediation
-                                </h4>
-                                <p class="text-[9px] text-slate-600 mt-1 uppercase font-bold">Awaiting Human Review Loop
-                                </p>
-                            </div>
-                            <div id="patch-list" class="flex-1 overflow-y-auto space-y-4 pr-2 custom-scroll">
-                                <!-- Patch target cards -->
-                            </div>
-                        </div>
-                        <div
-                            class="col-span-9 glass rounded-[3.5rem] flex flex-col overflow-hidden relative shadow-2xl">
-                            <div
-                                class="h-16 border-b border-white/5 flex items-center justify-between px-10 bg-white/5">
-                                <div class="flex items-center gap-4">
-                                    <div class="flex gap-1.5">
-                                        <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
-                                        <div class="w-3 h-3 rounded-full bg-amber-500/50"></div>
-                                        <div class="w-3 h-3 rounded-full bg-green-500/50"></div>
-                                    </div>
-                                    <span id="editor-path"
-                                        class="text-[11px] font-mono text-slate-500 italic">/kernel/system_core.bin</span>
-                                </div>
-                                <div class="flex gap-4">
-                                    <button onclick="approveNeuralPatch()" id="btn-approve"
-                                        class="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-lg shadow-green-900/20 disabled:hidden">Deploy
-                                        Patch</button>
-                                    <button onclick="rejectNeuralPatch()" id="btn-reject"
-                                        class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:hidden">Reject
-                                        Logic</button>
-                                </div>
-                            </div>
-                            <div class="flex-1 flex overflow-hidden">
-                                <div id="editor-numbers"
-                                    class="w-16 bg-black/40 text-slate-700 text-right pr-4 py-8 mono text-[11px] border-r border-white/5 select-none">
-                                </div>
-                                <div id="editor-content"
-                                    class="flex-1 overflow-auto mono text-xs p-8 leading-loose relative whitespace-pre bg-black/20">
-                                    <div
-                                        class="absolute inset-0 flex items-center justify-center opacity-10 flex-col gap-4">
-                                        <i data-lucide="brain" class="w-24 h-24"></i>
-                                        <span class="font-bold tracking-[1em] uppercase">Neural Analysis Required</span>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- Inline Error Toast -->
-                            <div id="inline-toast"
-                                class="absolute bottom-10 left-10 right-10 glass p-6 rounded-3xl border-l-[6px] border-red-500 hidden transform transition-transform duration-500 translate-y-20 shadow-2xl">
-                                <div class="flex items-start gap-4">
-                                    <i data-lucide="alert-triangle" class="text-red-500 w-6 h-6 shrink-0 mt-1"></i>
-                                    <div>
-                                        <p class="text-white font-bold text-sm tracking-tight mb-1" id="inline-title">
-                                            CRITICAL_VULN_IDENTIFIED</p>
-                                        <p class="text-[11px] text-slate-400" id="inline-msg">Buffer overflow possible
-                                            via user-controlled subprocess argument at index L24.</p>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- FORENSICS & RAW DATA -->
-                <section id="tab-forensics" class="tab-content space-y-10">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                        <div class="glass p-12 rounded-[2.5rem] space-y-8">
-                            <h4 class="text-white font-black uppercase tracking-widest">Metadata Inspector</h4>
-                            <div class="bg-black/60 rounded-3xl p-8 border border-white/5 font-mono text-[11px] leading-relaxed text-sky-400 max-h-[500px] overflow-auto"
-                                id="forensic-raw">
-                                { "status": "WAITING_FOR_DATA_SELECTION" }
-                            </div>
-                        </div>
-                        <div class="space-y-10">
-                            <div class="glass p-10 rounded-[2.5rem] border-l-4 border-sky-500 bg-sky-500/5">
-                                <h5 class="text-white font-bold mb-4 uppercase text-xs tracking-widest">Artifact Trace
-                                </h5>
-                                <p class="text-xs text-slate-500 leading-relaxed">System performs bitwise comparison
-                                    against known malicious hash libraries in real-time. Every artifact is
-                                    double-verified using pattern-matching AST models.</p>
-                            </div>
-                            <div
-                                class="glass p-10 rounded-[3rem] text-center space-y-6 flex flex-col items-center justify-center h-full">
-                                <i data-lucide="fingerprint" class="w-16 h-16 text-slate-800"></i>
-                                <p class="text-[10px] font-bold text-slate-700 uppercase tracking-widest">Digital
-                                    Fingerprint Analysis active.</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- SYSTEM AUDIT -->
-                <section id="tab-audit" class="tab-content space-y-10">
-                    <div class="glass rounded-[3rem] p-12 bg-black/40 font-mono text-[11px] leading-loose space-y-3 h-[70vh] overflow-y-auto custom-scroll"
-                        id="audit-terminal">
-                        <!-- Audit Log Content -->
-                    </div>
-                </section>
-
-            </div>
-
-            <!-- FOOTER STATUS STRIP -->
-            <footer
-                class="h-14 glass border-t border-slate-800/50 px-12 flex items-center justify-between text-[11px] font-bold tracking-[0.2em] relative z-[100]">
-                <div class="flex items-center gap-6 overflow-hidden flex-1">
-                    <span class="text-sky-500 uppercase shrink-0">Terminal Feed :</span>
-                    <div class="marquee-container flex-1 overflow-hidden whitespace-nowrap">
-                        <div id="marquee-text" class="inline-block marquee text-slate-600 uppercase">
-                            [BOOT_SEQ_COMPLETE] - [AUTH_PROVIDER_ACTIVE] - [NETWORK_LINK_ESTABLISHED] -
-                            [SCAN_ENGINE_READY] - [AI_REMEDIATION_LOADED]
-                        </div>
-                    </div>
-                </div>
-                <div class="flex items-center gap-4 text-slate-600 ml-10 shrink-0">
-                    <span id="session-time">00:00:00</span>
-                    <i data-lucide="monitor" class="w-4 h-4"></i>
-                </div>
-            </footer>
-
-        </main>
-    </div>
-
-    <!-- TOAST NOTIFICATIONS -->
-    <div id="toast-bin" class="fixed top-28 right-12 z-[1000] w-96 space-y-4 pointer-events-none"></div>
-
-    <script>
-        // --- HUD CONFIG ---
-        let activeTab = 'dashboard';
-        let statsChart = null;
-        let selectedVuln = null;
-        let scanActive = false;
-        let reconnectCount = 0;
-
-        // --- BOOT PROCESS ---
-        window.addEventListener('load', async () => {
-            lucide.createIcons();
-            initVisuals();
-            startLoop();
-
-            // Health Circle Init
-            updateHealthUI(0);
-
-            // Initial data pull
-            await refreshData();
-
-            // Uptime timer
-            let seconds = 0;
-            setInterval(() => {
-                seconds++;
-                const h = Math.floor(seconds / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                document.getElementById('uptime-val').innerText = `UP: ${h}h ${m}m`;
-                document.getElementById('session-time').innerText = new Date().toLocaleTimeString();
-            }, 1000);
-        });
-
-        function initVisuals() {
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            statsChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: ['Kernel', 'Network', 'Database', 'Logic', 'Auth', 'UI'],
-                    datasets: [{
-                        label: 'Attack Vector Concentration',
-                        data: [12, 19, 3, 5, 2, 3],
-                        backgroundColor: '#0ea5e966',
-                        borderColor: '#0ea5e9',
-                        borderWidth: 2,
-                        borderRadius: 8
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: '#ffffff05' }, ticks: { color: '#475569', font: { size: 9 } } },
-                        x: { grid: { display: false }, ticks: { color: '#475569', font: { size: 9 } } }
-                    }
-                }
-            });
-        }
-
-        // --- NAVIGATION ---
-        function switchTab(tabId) {
-            activeTab = tabId;
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById('tab-' + tabId).classList.add('active');
-
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('sidebar-active'));
-            document.getElementById('nav-' + tabId).classList.add('sidebar-active');
-
-            const labelMap = {
-                dashboard: 'Overview_Metrics', vulnerabilities: 'Signature_Inventory', 'patch-lab': 'AI_Neural_Laboratory',
-                risk: 'Algorithm_Hub', logic: 'Kernel_Flow', forensics: 'Artifact_Inspector', engine: 'Core_Specifications',
-                audit: 'Audit_Stream'
-            };
-            document.getElementById('tab-label').innerText = (labelMap[tabId] || tabId).toUpperCase();
-            document.getElementById('breadcrumb').innerText = `SecLAB Alpha > ${tabId.charAt(0).toUpperCase() + tabId.slice(1)}`;
-
-            refreshData();
-        }
-
-        // --- CORE DATA ENGINE ---
-        async function refreshData() {
-            try {
-                const dashRes = await fetch('/dashboard');
-                if (!dashRes.ok) throw new Error("SIGNAL_LOSS");
-                const dashData = await dashRes.json();
-
-                updateDashboardUI(dashData);
-                document.getElementById('conn-lost').classList.add('hidden');
-                reconnectCount = 0;
-
-                // Tab-specific loads
-                if (activeTab === 'vulnerabilities') await loadInventory();
-                if (activeTab === 'patch-lab') await loadLaboratory();
-                if (activeTab === 'audit') await loadAuditLog();
-                if (activeTab === 'forensics') loadForensics();
-
-            } catch (err) {
-                console.error("CORE_FAIL:", err);
-                handleConnectionFailure();
-            }
-        }
-
-        function updateDashboardUI(data) {
-            document.getElementById('dash-health').innerText = data.health_score;
-            document.getElementById('dash-total').innerText = data.kpis.total;
-            document.getElementById('dash-rate').innerText = data.kpis.success_rate;
-            updateHealthUI(data.health_score);
-
-            // Randomize chart a bit for "life"
-            statsChart.data.datasets[0].data = statsChart.data.datasets[0].data.map(v => v + (Math.random() - 0.5) * 4);
-            statsChart.update();
-
-            // Activity Log
-            fetch('/recent-activity').then(r => r.json()).then(res => {
-                const container = document.getElementById('dash-activity');
-                container.innerHTML = res.activity.slice(0, 6).map(act => `
-                    <div class="p-5 glass rounded-[2rem] border-l-[3px] ${act.includes('FIXED') ? 'border-green-500 bg-green-500/5' : 'border-sky-500'} flex items-center justify-between group hover:scale-[1.02] transition">
-                         <div class="flex items-center gap-4">
-                            <div class="w-1.5 h-1.5 rounded-full ${act.includes('FIXED') ? 'bg-green-500' : 'bg-sky-500'} animate-pulse"></div>
-                            <span class="text-[11px] font-mono whitespace-nowrap overflow-hidden text-ellipsis max-w-[200px]">${act}</span>
-                         </div>
-                         <i data-lucide="arrow-right" class="w-3 h-3 text-slate-800 transition group-hover:text-white"></i>
-                    </div>
-                `).join('');
-                lucide.createIcons();
-            });
-        }
-
-        function updateHealthUI(score) {
-            const circle = document.getElementById('health-circle');
-            const circumference = 364.4; // 2 * PI * 58
-            const offset = circumference - (score / 100) * circumference;
-            circle.style.strokeDashoffset = offset;
-        }
-
-        // --- TABS LOGIC ---
-        async function loadInventory() {
-            const res = await fetch('/vulnerabilities');
-            const list = await res.json();
-            const body = document.getElementById('vuln-list-body');
-            body.innerHTML = list.map(v => `
-                 <tr class="group hover:bg-sky-500/5 transition">
-                    <td class="px-10 py-6">
-                        <div class="text-white font-black uppercase tracking-tight">${v.name}</div>
-                        <div class="text-[9px] text-slate-600 mt-1 font-mono tracking-widest">${v.id.substring(0, 16)}...</div>
-                    </td>
-                    <td class="px-10 py-6">
-                         <div class="text-[11px] text-slate-400 font-mono italic">${v.file_path.split(/[\\/]/).pop()}</div>
-                         <div class="text-[10px] text-slate-600 mt-1 uppercase font-bold tracking-widest">ASM_LINE: ${v.line_number}</div>
-                    </td>
-                    <td class="px-10 py-6 text-center">
-                         <span class="px-3 py-1 bg-${v.severity == 'CRITICAL' ? 'red' : (v.severity == 'HIGH' ? 'red' : 'sky')}-500/10 text-${v.severity == 'CRITICAL' ? 'red' : (v.severity == 'HIGH' ? 'red' : 'sky')}-500 rounded-full text-[9px] font-black tracking-widest border border-current/20">${v.severity}</span>
-                    </td>
-                    <td class="px-10 py-6 text-center">
-                         <span class="text-[10px] uppercase font-bold ${v.state == 'FIXED' ? 'text-green-500' : 'text-slate-600'}">${v.state}</span>
-                    </td>
-                    <td class="px-10 py-6 text-right">
-                         <button onclick="openNeuralEditor('${v.id}')" class="text-[10px] font-black text-sky-500 hover:text-white uppercase tracking-widest inline-flex items-center gap-2 group-hover:translate-x-1 transition">Investigate <i data-lucide="compass" class="w-3 h-3"></i></button>
-                    </td>
-                 </tr>
-            `).join('');
-            lucide.createIcons();
-        }
-
-        async function loadLaboratory() {
-            const res = await fetch('/vulnerabilities');
-            const all = await res.json();
-            const list = document.getElementById('patch-list');
-
-            list.innerHTML = all.map(v => `
-                <div onclick="openNeuralEditor('${v.id}')" class="p-5 glass rounded-3xl cursor-pointer transition border border-transparent ${selectedVuln && selectedVuln.id === v.id ? 'border-sky-500 bg-sky-500/5' : 'hover:border-slate-700'}">
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-[9px] font-black text-slate-600 uppercase tracking-widest">${v.state}</span>
-                        <div class="w-2 h-2 rounded-full ${v.severity == 'HIGH' ? 'bg-red-500' : 'bg-sky-500'}"></div>
-                    </div>
-                    <h5 class="text-white font-bold text-xs uppercase italic">${v.name}</h5>
-                    <p class="text-[10px] text-slate-500 mt-2 font-mono truncate">${v.file_path}</p>
-                </div>
-             `).join('');
-
-            if (all.length > 0 && !selectedVuln) openNeuralEditor(all[0].id);
-        }
-
-        async function openNeuralEditor(id) {
-            switchTab('patch-lab');
-            const res = await fetch(`/vulnerabilities/${id}/source`);
-            const data = await res.json();
-            selectedVuln = { id, ...data };
-
-            document.getElementById('editor-path').innerText = data.file;
-            const content = document.getElementById('editor-content');
-            const numbers = document.getElementById('editor-numbers');
-
-            const lines = data.content.split('\n');
-            content.innerHTML = '';
-            numbers.innerHTML = '';
-
-            lines.forEach((l, i) => {
-                const lineNum = i + 1;
-                const div = document.createElement('div');
-                div.className = 'px-4 transition hover:bg-white/5 whitespace-pre';
-                div.textContent = l || ' ';
-
-                if (lineNum === data.line) {
-                    div.classList.add('bg-red-500/10', 'border-l-4', 'border-red-500', 'text-white');
-                    div.innerHTML = `<span class="inline-block relative">
-                        ${div.textContent}
-                        <span class="absolute -left-20 top-0 text-[10px] bg-red-500 text-white px-1.5 rounded animate-pulse">BREAK</span>
-                    </span>`;
-                    showInlineToast(data.description);
-                }
-                content.appendChild(div);
-
-                const n = document.createElement('div');
-                n.textContent = lineNum;
-                numbers.appendChild(n);
-            });
-
-            document.getElementById('btn-approve').disabled = false;
-            document.getElementById('btn-reject').disabled = false;
-            refreshData();
-        }
-
-        function showInlineToast(msg) {
-            const t = document.getElementById('inline-toast');
-            document.getElementById('inline-msg').innerText = msg;
-            t.classList.remove('hidden');
-            setTimeout(() => t.classList.remove('translate-y-20'), 100);
-        }
-
-        async function loadAuditLog() {
-            const res = await fetch('/audit-logs');
-            const logs = await res.json();
-            const term = document.getElementById('audit-terminal');
-            term.innerHTML = logs.reverse().map(l => `
-                <div class="group flex gap-6 border-b border-white/5 pb-2">
-                    <span class="text-slate-600 shrink-0 uppercase">[${new Date(l.timestamp).toISOString()}]</span>
-                    <span class="text-sky-500 font-black shrink-0 tracking-widest">${l.event_type}</span>
-                    <span class="text-slate-400 group-hover:text-white transition">>>> ${l.description}</span>
-                </div>
-             `).join('');
-        }
-
-        function loadForensics() {
-            if (selectedVuln) {
-                document.getElementById('forensic-raw').innerText = JSON.stringify(selectedVuln, null, 2);
-            }
-        }
-
-        // --- ACTIONS ---
-        async function runDiagnosticScan() {
-            if (scanActive) return;
-            scanActive = true;
-            showHUDToast("DIAGNOSTIC_INITIATED: Probing local sectors...", "info");
-
-            const res = await fetch('/scan-trigger', { method: 'POST' });
-            const data = await res.json();
-
-            showHUDToast(`ANALYSIS_COMPLETE: ${data.found} signatures indexed successfully.`, "success");
-            await refreshData();
-            scanActive = false;
-        }
-
-        async function approveNeuralPatch() {
-            if (!selectedVuln) return;
-            const res = await fetch(`/review/${selectedVuln.id}?action=approve`, { method: 'POST' });
-            if (res.ok) {
-                showHUDToast("KINETIC_FIX_APPLIED: Source integrity restored.", "success");
-                await refreshData();
-            }
-        }
-
-        async function rejectNeuralPatch() {
-            if (!selectedVuln) return;
-            const res = await fetch(`/review/${selectedVuln.id}?action=reject`, { method: 'POST' });
-            if (res.ok) {
-                showHUDToast("ANOMALY_BYPASSED: Neural weights recalibrated.", "info");
-                await refreshData();
-            }
-        }
-
-        // --- FAIL-SAFE SYSTEM ---
-        function handleConnectionFailure() {
-            reconnectCount++;
-            if (reconnectCount > 2) {
-                document.getElementById('conn-lost').classList.remove('hidden');
-            }
-        }
-
-        function startLoop() {
-            setInterval(refreshData, 30000); // 30s heartbeat
-        }
-
-        function showHUDToast(msg, type) {
-            const bin = document.getElementById('toast-bin');
-            const t = document.createElement('div');
-            t.className = `glass p-6 rounded-3xl border-l-[8px] ${type == 'success' ? 'border-green-500 bg-green-500/5' : (type == 'error' ? 'border-red-500 bg-red-500/5' : 'border-sky-500 bg-sky-500/5')} shadow-2xl animate-hud-toast pointer-events-auto`;
-            t.innerHTML = `
-                <div class="flex items-center gap-4">
-                     <i data-lucide="${type == 'success' ? 'check-circle' : 'alert-circle'}" class="w-6 h-6 ${type == 'success' ? 'text-green-500' : 'text-sky-400'}"></i>
-                     <div>
-                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500 mb-0.5">Core System Message</p>
-                        <p class="text-xs font-bold text-white tracking-widest uppercase">${msg}</p>
-                     </div>
-                </div>
-            `;
-            bin.appendChild(t);
-            lucide.createIcons();
-            setTimeout(() => {
-                t.style.opacity = '0';
-                t.style.transform = 'scale(0.9) translateX(50px)';
-                setTimeout(() => t.remove(), 500);
-            }, 5000);
-        }
-    </script>
-    <style>
-        @keyframes hud-toast {
-            from {
-                opacity: 0;
-                transform: translateX(50px) scale(0.9);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateX(0) scale(1);
-            }
-        }
-
-        .animate-hud-toast {
-            animation: hud-toast 0.4s cubic-bezier(0, 0, 0.2, 1);
-        }
 
         .custom-scroll::-webkit-scrollbar {
             width: 4px;
@@ -821,6 +96,766 @@
         .custom-scroll::-webkit-scrollbar-thumb {
             background: #1e293b;
             border-radius: 10px;
+        }
+    </style>
+</head>
+
+<body class="overflow-hidden select-none matrix-grid">
+
+    <!-- SIGNAL LOSS OVERLAY -->
+    <div id="conn-lost"
+        class="fixed inset-0 z-[200] bg-slate-950/95 backdrop-blur-xl hidden flex flex-col items-center justify-center p-10 text-center">
+        <div class="p-8 bg-red-500/10 border border-red-500 rounded-full mb-10 animate-pulse">
+            <i data-lucide="wifi-off" class="text-red-500 w-16 h-16"></i>
+        </div>
+        <h2 class="text-4xl font-black text-white mb-4 tracking-tighter uppercase italic">Signal Loss: Core Unreachable
+        </h2>
+        <p class="text-slate-500 max-w-md text-lg">Autonomous link to SecLAB Core was severed. This may be due to a 405
+            CORS error or deployment restart. Attempting emergency reconnection...</p>
+        <div class="mt-12 flex gap-6">
+            <button onclick="window.location.reload()"
+                class="bg-sky-600 hover:bg-sky-500 text-white px-10 py-3 rounded-2xl font-black uppercase tracking-widest transition shadow-lg shadow-sky-900/20">Emergency
+                Reboot</button>
+        </div>
+    </div>
+
+    <div class="flex h-screen w-full relative">
+
+        <!-- SIDEBAR -->
+        <aside class="w-80 glass border-r border-slate-800/50 flex flex-col z-50">
+            <div class="p-10 border-b border-slate-800/30">
+                <div class="flex items-center gap-4">
+                    <div
+                        class="w-14 h-14 glass rounded-2xl flex items-center justify-center border-sky-500/40 glow-cyan">
+                        <i data-lucide="shield-check" class="text-sky-500 w-8 h-8"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-white font-black text-2xl tracking-tighter">SecLAB <span
+                                class="text-sky-500">α</span></h1>
+                        <p class="text-[10px] font-black text-sky-500 uppercase tracking-[0.3em] mt-0.5">Autonomous OS
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="flex-1 p-8 space-y-1 overflow-y-auto custom-scroll">
+                <p class="px-4 text-[11px] font-black text-slate-700 uppercase tracking-[0.3em] mb-6">Operations</p>
+                <button onclick="switchTab('dashboard')" id="nav-dashboard"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group sidebar-active">
+                    <i data-lucide="layout-grid" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">System Overview</span>
+                </button>
+                <button onclick="switchTab('vulnerabilities')" id="nav-vulnerabilities"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="ghost" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">Threat Database</span>
+                </button>
+                <button onclick="switchTab('patch-lab')" id="nav-patch-lab"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="zap" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">AI Remediation</span>
+                </button>
+
+                <p class="px-4 text-[11px] font-black text-slate-700 uppercase tracking-[0.3em] mt-12 mb-6">Intelligence
+                </p>
+                <button onclick="switchTab('risk')" id="nav-risk"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="compass" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">Risk Matrix</span>
+                </button>
+                <button onclick="switchTab('forensics')" id="nav-forensics"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="fingerprint" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">Code Forensics</span>
+                </button>
+                <button onclick="switchTab('logic')" id="nav-logic"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="brain" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">Neural Logic Flow</span>
+                </button>
+
+                <p class="px-4 text-[11px] font-black text-slate-700 uppercase tracking-[0.3em] mt-12 mb-6">Reports &
+                    Data</p>
+                <button onclick="switchTab('reports')" id="nav-reports"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="file-text" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">Executive Reports</span>
+                </button>
+                <button onclick="switchTab('network')" id="nav-network"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="network" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">Edge Topography</span>
+                </button>
+
+                <p class="px-4 text-[11px] font-black text-slate-700 uppercase tracking-[0.3em] mt-12 mb-6">Kernel</p>
+                <button onclick="switchTab('audit')" id="nav-audit"
+                    class="nav-btn w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:text-white transition group">
+                    <i data-lucide="terminal" class="w-5 h-5 group-hover:text-sky-400"></i> <span
+                        class="font-bold tracking-tight">Audit Stream</span>
+                </button>
+            </nav>
+
+            <div class="p-8">
+                <div class="glass p-6 rounded-3xl border border-sky-900/40 relative group overflow-hidden">
+                    <div class="absolute inset-0 shimmer opacity-20"></div>
+                    <div class="flex items-center gap-4 mb-4 relative z-10">
+                        <div class="w-3 h-3 rounded-full bg-green-500 glow-cyan animate-pulse"></div>
+                        <span class="text-[11px] font-black text-white uppercase tracking-widest">Node_Online</span>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] font-mono text-slate-500 relative z-10">
+                        <span>DB_SQLITE: OK</span>
+                        <span id="uptime-val">UP: 0h 0m</span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- MAIN AREA -->
+        <main class="flex-1 flex flex-col min-w-0">
+
+            <!-- HEADER -->
+            <header
+                class="h-28 glass border-b border-slate-800/50 flex items-center justify-between px-16 relative z-40">
+                <div class="flex items-center gap-8">
+                    <div class="w-2 h-10 bg-sky-500 rounded-full glow-cyan"></div>
+                    <div>
+                        <h2 id="tab-label" class="text-3xl font-black text-white tracking-[0.1em] uppercase italic">
+                            System_Dashboard</h2>
+                        <div class="flex gap-6 mt-2 text-[11px] font-black text-slate-500 uppercase tracking-widest">
+                            <span id="breadcrumb">SecLAB Alpha > Dashboard</span>
+                            <span class="text-sky-500/50">|</span>
+                            <span>Region: Global_Edge</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-8">
+                    <div id="reconnect-badge"
+                        class="hidden flex items-center gap-3 px-5 py-2 bg-red-500/10 border border-red-500/30 rounded-full">
+                        <span class="w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+                        <span
+                            class="text-[10px] font-black text-red-500 uppercase tracking-widest">Reconnecting...</span>
+                    </div>
+                    <button onclick="initiateDeepScan()"
+                        class="group relative px-10 py-4 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl overflow-hidden transition-all shadow-xl shadow-sky-900/20 active:scale-95">
+                        <div class="flex items-center gap-3 relative z-10">
+                            <i data-lucide="radar" class="w-5 h-5 group-hover:animate-spin"></i>
+                            <span class="text-xs font-black uppercase tracking-widest">Initiate Deep Scan</span>
+                        </div>
+                    </button>
+                    <div
+                        class="w-12 h-12 glass rounded-2xl flex items-center justify-center border-slate-700/50 cursor-pointer hover:bg-slate-800 transition shadow-lg">
+                        <i data-lucide="cog" class="w-5 h-5 text-slate-500"></i>
+                    </div>
+                </div>
+            </header>
+
+            <!-- TABS CONTAINER -->
+            <div class="flex-1 overflow-y-auto p-16 space-y-16 custom-scroll relative bg-slate-950/20">
+
+                <!-- DASHBOARD -->
+                <section id="tab-dashboard" class="tab-content active space-y-16">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+                        <div
+                            class="lg:col-span-2 glass p-12 rounded-[3rem] flex items-center gap-12 relative overflow-hidden group">
+                            <div
+                                class="absolute -right-20 -bottom-20 opacity-5 transition-transform group-hover:scale-110">
+                                <i data-lucide="shield" class="w-96 h-96 text-sky-500"></i>
+                            </div>
+                            <div
+                                class="shrink-0 w-40 h-40 rounded-full border-[12px] border-slate-800/50 flex items-center justify-center relative shadow-[inset_0_0_60px_rgba(14,165,233,0.15)] bg-slate-950">
+                                <span class="text-5xl font-black text-white glow-text" id="dash-health">--</span>
+                                <svg class="absolute inset-0 -rotate-90 w-40 h-40 p-2">
+                                    <circle cx="72" cy="72" r="64" fill="transparent" stroke="currentColor"
+                                        stroke-width="12" class="text-sky-500/10"></circle>
+                                    <circle id="health-bar" cx="72" cy="72" r="64" fill="transparent"
+                                        stroke="currentColor" stroke-width="12" stroke-dasharray="402"
+                                        stroke-dashoffset="402" class="text-sky-500 transition-all duration-1000">
+                                    </circle>
+                                </svg>
+                            </div>
+                            <div>
+                                <p
+                                    class="text-[12px] font-black text-sky-500 uppercase tracking-[0.5em] mb-4 text-glow">
+                                    Integrity Score</p>
+                                <h3 class="text-white text-4xl font-black tracking-tight mb-4 italic">STABLE_OPS</h3>
+                                <p class="text-slate-500 text-sm leading-relaxed max-w-sm font-medium">Your perimeter is
+                                    monitored by 450+ autonomous logic gates. All sectors currently reporting green
+                                    state.</p>
+                            </div>
+                        </div>
+                        <div class="glass p-12 rounded-[3.5rem] flex flex-col justify-center">
+                            <p class="text-[11px] font-black text-slate-600 uppercase tracking-widest mb-6">Threat
+                                Inventory</p>
+                            <h2 class="text-6xl font-black text-white glow-text" id="dash-total">--</h2>
+                            <p class="text-[10px] text-slate-700 font-bold uppercase mt-4 tracking-widest">Active
+                                Entities</p>
+                        </div>
+                        <div
+                            class="glass p-12 rounded-[3.5rem] flex flex-col justify-center border-l-4 border-green-500">
+                            <p class="text-[11px] font-black text-slate-600 uppercase tracking-widest mb-6">Remediation
+                                Rate</p>
+                            <h2 class="text-6xl font-black text-green-400 glow-text" id="dash-rate">--%</h2>
+                            <p class="text-[10px] text-green-900 font-bold uppercase mt-4 tracking-widest">Neural
+                                Accuracy</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                        <div class="lg:col-span-2 glass rounded-[3.5rem] p-12 h-[500px] flex flex-col">
+                            <div class="flex justify-between items-center mb-12">
+                                <h4 class="text-white font-black text-sm uppercase tracking-widest italic">Threat Vector
+                                    Convergence</h4>
+                                <div class="flex gap-6">
+                                    <span class="flex items-center gap-3 text-[10px] font-bold uppercase">
+                                        <div class="w-3 h-3 rounded bg-sky-500 shadow-lg shadow-sky-900/30"></div>
+                                        Network
+                                    </span>
+                                    <span class="flex items-center gap-3 text-[10px] font-bold uppercase">
+                                        <div class="w-3 h-3 rounded bg-red-500 shadow-lg shadow-red-900/30"></div> Logic
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="flex-1 relative">
+                                <canvas id="dashboardChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="glass rounded-[3.5rem] p-12 flex flex-col h-[500px]">
+                            <h4 class="text-white font-black text-sm uppercase tracking-widest mb-12 italic">Autonomous
+                                Pulse</h4>
+                            <div id="log-feed" class="flex-1 space-y-5 overflow-y-auto custom-scroll pr-3">
+                                <!-- Activity Items -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- THREAT DATABASE -->
+                <section id="tab-vulnerabilities" class="tab-content space-y-12">
+                    <div class="flex justify-between items-center">
+                        <h3
+                            class="text-white text-4xl font-black tracking-tight uppercase italic underline decoration-sky-500/20 underline-offset-8">
+                            Signature Database</h3>
+                        <div class="flex gap-6">
+                            <div class="relative">
+                                <i data-lucide="search" class="w-4 h-4 text-slate-600 absolute left-6 top-4"></i>
+                                <input type="text" placeholder="Grep signatures..."
+                                    class="bg-slate-900/50 border border-slate-700/50 pl-14 pr-10 py-4 rounded-3xl text-sm text-white focus:outline-none focus:border-sky-500/50 transition-all w-96 font-bold">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass rounded-[3.5rem] overflow-hidden border border-slate-800/50">
+                        <table class="w-full text-left">
+                            <thead
+                                class="bg-slate-900/50 text-[11px] font-black text-sky-500 uppercase tracking-[0.25em] border-b border-white/5">
+                                <tr>
+                                    <th class="px-12 py-8">Unique_ID / Signature</th>
+                                    <th class="px-12 py-8">System_Context</th>
+                                    <th class="px-12 py-8 text-center">Crisis_Vector</th>
+                                    <th class="px-12 py-8 text-center">Lifecycle_State</th>
+                                    <th class="px-12 py-8 text-right">Action_Intel</th>
+                                </tr>
+                            </thead>
+                            <tbody id="vuln-table-body"
+                                class="divide-y divide-white/5 text-[13px] font-medium font-mono text-slate-400">
+                                <!-- Dynamic Data -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- AI LABORATORY -->
+                <section id="tab-patch-lab" class="tab-content h-[calc(100vh-320px)]">
+                    <div class="grid grid-cols-12 gap-10 h-full">
+                        <div class="col-span-3 glass rounded-[3.5rem] p-8 flex flex-col overflow-hidden">
+                            <div class="mb-8 px-2">
+                                <h4 class="text-white font-black text-sm uppercase tracking-widest italic">Pending Loops
+                                </h4>
+                                <p class="text-[10px] font-bold text-slate-600 mt-2 uppercase tracking-[0.15em]">Neural
+                                    Analysis Awaiting Approval</p>
+                            </div>
+                            <div id="lab-list" class="flex-1 overflow-y-auto space-y-5 pr-4 custom-scroll">
+                                <!-- Vulnerability Cards -->
+                            </div>
+                        </div>
+                        <div
+                            class="col-span-9 glass rounded-[4rem] group flex flex-col overflow-hidden relative shadow-2xl border border-sky-500/10">
+                            <div
+                                class="h-20 bg-white/5 border-b border-white/5 flex items-center justify-between px-12">
+                                <div class="flex items-center gap-6">
+                                    <div class="flex gap-2">
+                                        <div class="w-3.5 h-3.5 rounded-full bg-red-400/30"></div>
+                                        <div class="w-3.5 h-3.5 rounded-full bg-amber-400/30"></div>
+                                        <div class="w-3.5 h-3.5 rounded-full bg-green-400/30"></div>
+                                    </div>
+                                    <span id="studio-path"
+                                        class="text-[13px] font-mono text-slate-500 italic font-bold">/kernel/autonomous_bridge.py</span>
+                                </div>
+                                <div class="flex gap-6">
+                                    <button onclick="approveFix()" id="studio-approve"
+                                        class="bg-green-600 hover:bg-green-500 text-white px-10 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition shadow-lg shadow-green-900/30 disabled:hidden">Deploy
+                                        Patch</button>
+                                    <button onclick="rejectFix()" id="studio-reject"
+                                        class="bg-slate-800 hover:bg-slate-700 text-slate-400 px-10 py-3 rounded-2xl text-[11px] font-black uppercase tracking-widest transition disabled:hidden">Discard
+                                        Logic</button>
+                                </div>
+                            </div>
+                            <div class="flex-1 flex overflow-hidden">
+                                <div id="studio-nums"
+                                    class="w-20 bg-black/40 text-slate-700 text-right pr-6 py-10 font-bold mono text-[13px] border-r border-white/5 select-none">
+                                </div>
+                                <div id="studio-content"
+                                    class="flex-1 overflow-auto mono text-[13px] p-10 leading-[1.8] relative whitespace-pre bg-black/30 text-slate-400">
+                                    <div
+                                        class="absolute inset-0 flex flex-col items-center justify-center opacity-10 pointer-events-none">
+                                        <i data-lucide="brain-circuit" class="w-32 h-32 mb-6"></i>
+                                        <span class="text-lg font-black tracking-[1.5em] uppercase text-white">Neural
+                                            Studio</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Code Alert Popup -->
+                            <div id="code-alert"
+                                class="absolute bottom-12 left-12 right-12 glass p-8 rounded-[2.5rem] border-l-[8px] border-red-500 shadow-2xl transform translate-y-40 transition-all duration-700 opacity-0 pointer-events-none">
+                                <div class="flex items-start gap-8">
+                                    <div
+                                        class="w-14 h-14 rounded-3xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                                        <i data-lucide="alert-octagon" class="text-red-500 w-7 h-7"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-white font-black text-lg tracking-tight mb-2 uppercase italic">
+                                            Signature Identified</p>
+                                        <p id="alert-msg" class="text-slate-400 text-sm leading-relaxed max-w-2xl">
+                                            Buffer overflow vector detected at L12. Potential memory corruption risk via
+                                            unchecked subprocess execution.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- FORENSICS -->
+                <section id="tab-forensics" class="tab-content space-y-16">
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 h-[600px]">
+                        <div class="glass p-12 rounded-[4rem] flex flex-col overflow-hidden">
+                            <h4 class="text-white font-black text-sm uppercase tracking-widest italic mb-10">Raw
+                                Artifact Inspector</h4>
+                            <div id="forensic-json"
+                                class="flex-1 bg-black/50 p-10 rounded-[2rem] font-mono text-[11px] leading-relaxed text-sky-400 overflow-auto border border-white/5 custom-scroll">
+                                { "status": "WAITING_FOR_SIGNATURE_SELECTION" }
+                            </div>
+                        </div>
+                        <div class="space-y-12 flex flex-col justify-center">
+                            <div
+                                class="glass p-12 rounded-[3.5rem] border-l-[10px] border-sky-600 bg-sky-600/5 shadow-2xl">
+                                <h5 class="text-white font-black uppercase text-sm mb-6 tracking-widest italic">
+                                    Evolutionary State Map</h5>
+                                <p class="text-sm text-slate-500 leading-loose">The system performs bitwise verification
+                                    against world-wide threat intelligence feeds. Every line of code is cross-referenced
+                                    with 10M+ known malicious patterns in the unified security kernel.</p>
+                            </div>
+                            <div
+                                class="flex-1 glass rounded-[3.5rem] flex items-center justify-center relative overflow-hidden">
+                                <div class="absolute inset-0 shimmer opacity-20"></div>
+                                <div class="text-center relative z-10 p-12">
+                                    <i data-lucide="fingerprint" class="w-24 h-24 text-slate-800 mx-auto mb-8"></i>
+                                    <p class="text-[12px] font-black text-slate-700 uppercase tracking-[0.4em]">
+                                        Biometric Verification Logic Enabled</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- AUDIT STREAM -->
+                <section id="tab-audit" class="tab-content space-y-16">
+                    <div class="glass rounded-[4rem] bg-black/50 p-16 font-mono text-[12px] leading-[2] space-y-4 h-[75vh] overflow-y-auto custom-scroll border border-white/5"
+                        id="audit-feed">
+                        <!-- Audit Lines -->
+                    </div>
+                </section>
+
+            </div>
+
+            <!-- FOOTER -->
+            <footer
+                class="h-16 glass border-t border-slate-800/50 px-16 flex items-center justify-between relative z-[100]">
+                <div class="flex items-center gap-10 overflow-hidden flex-1">
+                    <span class="text-sky-500 font-black uppercase text-[11px] tracking-[0.3em] shrink-0 italic">Secure
+                        Feed :</span>
+                    <div class="marquee-container flex-1 overflow-hidden whitespace-nowrap">
+                        <div id="marquee"
+                            class="inline-block text-[11px] font-black text-slate-700 uppercase tracking-widest animate-marquee">
+                            [KERNEL_INIT_SUCCESS] - [CLOUD_LINK_ACTIVE] - [PERSISTENCE_LAYER_VERIFIED] -
+                            [AI_PROMPT_VERSION_3.2] - [SENTINEL_MODE_ENABLED] - [READY_FOR_TRAFFIC]
+                        </div>
+                    </div>
+                </div>
+                <div
+                    class="flex items-center gap-8 ml-16 shrink-0 text-slate-600 font-bold text-[11px] tracking-widest">
+                    <span id="clock">00:00:00</span>
+                    <i data-lucide="radar" class="w-5 h-5"></i>
+                </div>
+            </footer>
+
+        </main>
+    </div>
+
+    <!-- TOAST NOTIFICATIONS -->
+    <div id="toast-pile" class="fixed top-32 right-16 z-[1000] w-[450px] space-y-5 pointer-events-none"></div>
+
+    <script>
+        // --- HUD CONFIG ---
+        let currentTab = 'dashboard';
+        let mainChart = null;
+        let activeVuln = null;
+        let isScanning = false;
+        let errorCount = 0;
+
+        // --- BOOT ENGINE ---
+        window.addEventListener('load', async () => {
+            lucide.createIcons();
+            initializeGraphics();
+
+            // Initial UI State
+            updateIntegrityUI(0);
+
+            // Heartbeat
+            startSystemHeartbeat();
+
+            // Clocks
+            updateUptime();
+            setInterval(updateUptime, 1000);
+        });
+
+        function updateUptime() {
+            document.getElementById('clock').innerText = new Date().toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        function initializeGraphics() {
+            const ctx = document.getElementById('dashboardChart').getContext('2d');
+            mainChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['T-60', 'T-50', 'T-40', 'T-30', 'T-20', 'T-10', 'Now'],
+                    datasets: [{
+                        label: 'Threat Intensity',
+                        data: [10, 25, 12, 45, 30, 60, 40],
+                        borderColor: '#0ea5e9',
+                        backgroundColor: (context) => {
+                            const gradient = context.chart.ctx.createLinearGradient(0, 0, 0, 400);
+                            gradient.addColorStop(0, '#0ea5e944');
+                            gradient.addColorStop(1, 'transparent');
+                            return gradient;
+                        },
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: '#ffffff03' }, ticks: { color: '#475569', font: { size: 10, weight: 'bold' } } },
+                        x: { grid: { display: false }, ticks: { color: '#475569', font: { size: 10, weight: 'bold' } } }
+                    }
+                }
+            });
+        }
+
+        // --- NAVIGATION ---
+        function switchTab(id) {
+            currentTab = id;
+            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('sidebar-active'));
+            document.getElementById('nav-' + id).classList.add('sidebar-active');
+
+            const tabLabels = {
+                dashboard: 'System_Dashboard', vulnerabilities: 'Signature_DB', 'patch-lab': 'AI_Neural_Laboratory',
+                risk: 'Crisis_Matrix', forensics: 'Artifact_Forensics', logic: 'Deep_Logic_Chain', engine: 'Engine_Metadata',
+                audit: 'Audit_Terminal', reports: 'Executive_Vault', network: 'Edge_Topology'
+            };
+            document.getElementById('tab-label').innerText = (tabLabels[id] || id).toUpperCase();
+            document.getElementById('breadcrumb').innerText = `SecLAB Alpha > ${id.charAt(0).toUpperCase() + id.slice(1)}`;
+
+            refreshSystemData();
+        }
+
+        // --- DATA SYNC (With Error Recovery) ---
+        async function refreshSystemData() {
+            try {
+                const dashRes = await fetch('/dashboard');
+
+                // If 405 or 404, throw to handle recovery
+                if (dashRes.status === 405 || dashRes.status === 404) throw new Error("METHOD_NOT_ALLOWED");
+
+                const dashData = await dashRes.json();
+                renderDashboard(dashData);
+
+                // Success - hide error screens
+                document.getElementById('conn-lost').classList.add('hidden');
+                document.getElementById('reconnect-badge').classList.add('hidden');
+                errorCount = 0;
+
+                // Tab Specific
+                if (currentTab === 'vulnerabilities') await syncInventory();
+                if (currentTab === 'patch-lab') await syncLaboratory();
+                if (currentTab === 'audit') await syncAuditFeed();
+                if (currentTab === 'forensics') populateForensics();
+
+            } catch (err) {
+                console.error("SEC_CORE_ERROR:", err);
+                handleCoreFailure();
+            }
+        }
+
+        function renderDashboard(data) {
+            document.getElementById('dash-health').innerText = data.health_score;
+            document.getElementById('dash-total').innerText = data.kpis.total;
+            document.getElementById('dash-rate').innerText = data.kpis.success_rate + '%';
+            updateIntegrityUI(data.health_score);
+
+            // Jiggle chart data
+            mainChart.data.datasets[0].data = mainChart.data.datasets[0].data.map(v => v + (Math.random() - 0.5) * 5);
+            mainChart.update();
+
+            // Log Feed
+            fetch('/recent-activity').then(r => r.json()).then(res => {
+                const feed = document.getElementById('log-feed');
+                feed.innerHTML = res.activity.slice(0, 8).map(log => `
+                     <div class="p-6 glass rounded-3xl border-l-[4px] ${log.includes('FIXED') ? 'border-green-500 bg-green-500/5' : 'border-sky-500'} flex items-center justify-between group hover:translate-x-1 transition">
+                        <div class="flex items-center gap-5">
+                            <div class="w-2 h-2 rounded-full ${log.includes('FIXED') ? 'bg-green-500' : 'bg-sky-500'} glow-cyan"></div>
+                            <span class="text-[12px] font-bold font-mono tracking-tight">${log}</span>
+                        </div>
+                        <i data-lucide="chevron-right" class="w-4 h-4 opacity-0 group-hover:opacity-100 transition"></i>
+                     </div>
+                `).join('');
+                lucide.createIcons();
+            });
+        }
+
+        function updateIntegrityUI(score) {
+            const bar = document.getElementById('health-bar');
+            const circumference = 402; // 2 * PI * 64
+            const offset = circumference - (score / 100) * circumference;
+            bar.style.strokeDashoffset = offset;
+        }
+
+        // --- SUB-TABS ENGINE ---
+        async function syncInventory() {
+            const res = await fetch('/vulnerabilities');
+            const data = await res.json();
+            const body = document.getElementById('vuln-table-body');
+            body.innerHTML = data.map(v => `
+                <tr class="group hover:bg-sky-500/5 transition">
+                    <td class="px-12 py-8">
+                        <div class="text-white font-black tracking-tighter uppercase italic">${v.name}</div>
+                        <div class="text-[10px] text-slate-700 mt-1 uppercase font-bold tracking-widest leading-none">${v.id.substring(0, 20)}...</div>
+                    </td>
+                    <td class="px-12 py-8 font-mono italic text-slate-500">
+                         ${v.file_path.split(/[\\/]/).pop()} <span class="text-[10px] text-slate-700 ml-2">L:${v.line_number}</span>
+                    </td>
+                    <td class="px-12 py-8 text-center">
+                         <span class="px-4 py-1.5 bg-${v.severity == 'CRITICAL' ? 'red' : 'sky'}-500/10 text-${v.severity == 'CRITICAL' ? 'red' : 'sky'}-500 border border-current/20 rounded-full text-[10px] font-black uppercase tracking-widest">${v.severity}</span>
+                    </td>
+                    <td class="px-12 py-8 text-center">
+                        <span class="text-[11px] font-black uppercase ${v.state == 'FIXED' ? 'text-green-500' : 'text-slate-700'}">${v.state}</span>
+                    </td>
+                    <td class="px-12 py-8 text-right">
+                         <button onclick="inspectSignature('${v.id}')" class="px-6 py-2 glass rounded-xl text-[10px] font-black text-sky-500 hover:text-white transition uppercase tracking-widest flex items-center gap-3 justify-end ml-auto group-hover:scale-105">View_Trace <i data-lucide="binoculars" class="w-3.5 h-3.5"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        async function syncLaboratory() {
+            const res = await fetch('/vulnerabilities');
+            const all = await res.json();
+            const list = document.getElementById('lab-list');
+            list.innerHTML = all.map(v => `
+                <div onclick="inspectSignature('${v.id}')" class="p-6 glass rounded-[2rem] cursor-pointer transition border border-transparent ${activeVuln && activeVuln.id === v.id ? 'border-sky-500 bg-sky-500/5 glow-cyan' : 'hover:border-slate-700'}">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-[10px] font-black text-slate-700 uppercase tracking-widest">${v.state}</span>
+                        <div class="w-2.5 h-2.5 rounded-full ${v.severity == 'CRITICAL' ? 'bg-red-500 shadow-lg shadow-red-900/50' : 'bg-sky-500'}"></div>
+                    </div>
+                    <h5 class="text-white font-black text-[13px] uppercase italic tracking-tight">${v.name}</h5>
+                    <p class="text-[11px] text-slate-600 mt-2 font-mono truncate">${v.file_path}</p>
+                </div>
+            `).join('');
+            if (all.length > 0 && !activeVuln) inspectSignature(all[0].id);
+        }
+
+        async function inspectSignature(id) {
+            switchTab('patch-lab');
+            const res = await fetch(`/vulnerabilities/${id}/source`);
+            const data = await res.json();
+            activeVuln = { id, ...data };
+
+            document.getElementById('studio-path').innerText = data.file;
+            const content = document.getElementById('studio-content');
+            const numbers = document.getElementById('studio-nums');
+
+            content.innerHTML = '';
+            numbers.innerHTML = '';
+
+            data.content.split('\n').forEach((line, i) => {
+                const lineNum = i + 1;
+                const div = document.createElement('div');
+                div.className = 'px-6 transition hover:bg-white/5 whitespace-pre min-h-[1.5em]';
+                div.textContent = line || ' ';
+
+                if (lineNum === data.line) {
+                    div.classList.add('bg-red-500/10', 'border-l-[6px]', 'border-red-500', 'text-white');
+                    div.innerHTML = `<span class="relative">${div.textContent}<span class="absolute -left-24 top-0.5 bg-red-600 text-white px-2 py-0.5 rounded font-black text-[9px] animate-pulse">BREAK</span></span>`;
+                    triggerStudioAlert(data.description);
+                }
+                content.appendChild(div);
+                const n = document.createElement('div');
+                n.textContent = lineNum;
+                numbers.appendChild(n);
+            });
+
+            document.getElementById('studio-approve').disabled = false;
+            document.getElementById('studio-reject').disabled = false;
+            refreshSystemData();
+        }
+
+        function triggerStudioAlert(msg) {
+            const al = document.getElementById('code-alert');
+            document.getElementById('alert-msg').innerText = msg;
+            al.style.opacity = '1';
+            al.style.transform = 'translateY(0)';
+            al.classList.remove('pointer-events-none');
+        }
+
+        async function syncAuditFeed() {
+            const res = await fetch('/audit-logs');
+            const data = await res.json();
+            const feed = document.getElementById('audit-feed');
+            feed.innerHTML = data.reverse().map(l => `
+                <div class="flex gap-10 border-b border-white/5 pb-4 group">
+                    <span class="text-slate-700 shrink-0 font-bold uppercase truncate w-64">[${new Date(l.timestamp).toISOString()}]</span>
+                    <span class="text-sky-500 font-black shrink-0 tracking-[2px] w-48">${l.event_type}</span>
+                    <span class="text-slate-400 group-hover:text-white transition italic">>> ${l.description}</span>
+                </div>
+             `).join('');
+        }
+
+        function populateForensics() {
+            if (activeVuln) {
+                document.getElementById('forensic-json').innerText = JSON.stringify(activeVuln, null, 4);
+            }
+        }
+
+        // --- GLOBAL ACTIONS ---
+        async function initiateDeepScan() {
+            if (isScanning) return;
+            isScanning = true;
+            showToast("DEEP_SCAN_INIT: Mapping local signatures...", "info");
+
+            const res = await fetch('/scan-trigger', { method: 'POST' });
+            const data = await res.json();
+
+            showToast(`SCAN_COMPLETE: ${data.found} vulnerable nodes identified.`, "success");
+            await refreshSystemData();
+            isScanning = false;
+        }
+
+        async function approveFix() {
+            if (!activeVuln) return;
+            showToast("NEURAL_FIX: Depoying patch to kernel...", "info");
+            const res = await fetch(`/review/${activeVuln.id}?action=approve`, { method: 'POST' });
+            if (res.ok) {
+                showToast("DEPLOYMENT_SUCCESS: Integrity restored.", "success");
+                await refreshSystemData();
+            }
+        }
+
+        async function rejectFix() {
+            if (!activeVuln) return;
+            const res = await fetch(`/review/${activeVuln.id}?action=reject`, { method: 'POST' });
+            if (res.ok) {
+                showToast("ANOMALY_DISCARDED: Model refinement loop synced.", "info");
+                await refreshSystemData();
+            }
+        }
+
+        // --- FAIL-SAFE ENGINE ---
+        function handleCoreFailure() {
+            errorCount++;
+            document.getElementById('reconnect-badge').classList.remove('hidden');
+            if (errorCount > 3) {
+                document.getElementById('conn-lost').classList.remove('hidden');
+            }
+        }
+
+        function startSystemHeartbeat() {
+            refreshSystemData();
+            setInterval(refreshSystemData, 15000); // 15s check
+        }
+
+        function showToast(msg, type) {
+            const pile = document.getElementById('toast-pile');
+            const t = document.createElement('div');
+            t.className = `glass p-8 rounded-[2rem] border-l-[10px] ${type == 'success' ? 'border-green-500 bg-green-500/5' : (type == 'error' ? 'border-red-500 bg-red-500/5' : 'border-sky-500 bg-sky-500/5')} shadow-2xl animate-toast-in pointer-events-auto`;
+            t.innerHTML = `
+                <div class="flex items-center gap-6">
+                     <i data-lucide="${type == 'success' ? 'check-circle-2' : 'info'}" class="w-8 h-8 ${type == 'success' ? 'text-green-500' : 'text-sky-400'}"></i>
+                     <div>
+                        <p class="text-[11px] font-black uppercase tracking-[0.3em] text-slate-500 mb-1">System Message</p>
+                        <p class="text-sm font-black text-white tracking-widest uppercase italic">${msg}</p>
+                     </div>
+                </div>
+            `;
+            pile.appendChild(t);
+            lucide.createIcons();
+            setTimeout(() => {
+                t.style.opacity = '0';
+                t.style.transform = 'translateX(100px) scale(0.9)';
+                setTimeout(() => t.remove(), 600);
+            }, 5000);
+        }
+    </script>
+    <style>
+        @keyframes toast-in {
+            from {
+                opacity: 0;
+                transform: translateX(100px) scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+            }
+        }
+
+        .animate-toast-in {
+            animation: toast-in 0.5s cubic-bezier(0, 0, 0.2, 1);
+        }
+
+        .animate-marquee {
+            animation: marquee 60s linear infinite;
+        }
+
+        @keyframes marquee {
+            0% {
+                transform: translateX(100%);
+            }
+
+            100% {
+                transform: translateX(-100%);
+            }
+        }
+
+        .text-glow {
+            text-shadow: 0 0 10px rgba(14, 165, 233, 0.5);
         }
     </style>
 </body>
