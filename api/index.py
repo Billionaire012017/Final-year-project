@@ -1,9 +1,25 @@
+import os
+import sys
+
+# CRITICAL: Fix for module imports on Render/Replit
+# Add parent directory to sys.path so 'scan_engine' is found even if run from 'api/'
+root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if root_dir not in sys.path:
+    sys.path.append(root_dir)
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from scan_engine.analytics import AnalyticsService
 from scan_engine.intel.db import create_db_and_tables
-import os
+
+# PERSISTENCE FIX: Allow custom DB path via environment variable
+# Recommened for Render: /etc/data/vulnerabilities.db
+db_path = os.getenv("DB_PATH")
+if db_path:
+    # Update the core DB path if provided
+    import scan_engine.intel.db as db_module
+    db_module.DB_URL = f"sqlite:///{db_path}"
 
 # Initialize DB on load
 create_db_and_tables()

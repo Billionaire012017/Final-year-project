@@ -1,12 +1,17 @@
 from sqlmodel import SQLModel, create_engine, Session
 
-sqlite_file_name = "vulnerabilities.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+# Defaults
+DB_URL = "sqlite:///vulnerabilities.db"
+engine = None
 
-engine = create_engine(sqlite_url)
+def get_engine():
+    global engine
+    if engine is None:
+        engine = create_engine(DB_URL)
+    return engine
 
 def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
+    SQLModel.metadata.create_all(get_engine())
 
 def get_session():
-    return Session(engine)
+    return Session(get_engine())
