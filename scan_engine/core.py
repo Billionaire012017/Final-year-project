@@ -16,8 +16,12 @@ class ScanEngine:
     def __init__(self):
         self.scanners = [
             BanditScanner(),
-            SemgrepScanner()
         ]
+        
+        # Check if semgrep is available
+        import shutil
+        if shutil.which("semgrep"):
+            self.scanners.append(SemgrepScanner())
         create_db_and_tables()
         self.enricher = EnrichmentService()
         self.alert_service = AlertService()

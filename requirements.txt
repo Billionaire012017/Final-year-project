@@ -1,6 +1,8 @@
 bandit
-semgrep
 pydantic
 typer
 sqlmodel
 jinja2
+fastapi
+uvicorn
+python-multipart
