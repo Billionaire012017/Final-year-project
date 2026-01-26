@@ -90,6 +90,70 @@ def get_audit():
     import json
     return json.loads(AuditService().export_logs_json())
 
+@app.get("/vulnerabilities/{vuln_id}/source")
+def get_source_code(vuln_id: str):
+    """
+    Returns the source file content and the line number of the error.
+    """
+    from scan_engine.intel.models import VulnerabilityRecord
+    from scan_engine.intel.db import get_session
+    session = get_session()
+    vuln = session.get(VulnerabilityRecord, vuln_id)
+    if not vuln:
+        raise HTTPException(status_code=404, detail="Vulnerability not found")
+    
+    try:
+        if os.path.exists(vuln.file_path):
+            with open(vuln.file_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            return {
+                "content": content,
+                "line": vuln.line_number,
+                "file": vuln.file_path,
+                "description": vuln.description
+            }
+        else:
+             # Fallback for demo if local file not found on server
+             return {
+                "content": f"# File {vuln.file_path} not found on server.\n# This is a placeholder for the error line.\ndef example():\n    pass",
+                "line": 1,
+                "file": vuln.file_path,
+                "description": vuln.description
+            }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/vulnerabilities/{vuln_id}/history")
+def get_vuln_history(vuln_id: str):
+    from scan_engine.intel.models import VulnerabilityHistory
+    from scan_engine.intel.db import get_session
+    session = get_session()
+    history = session.query(VulnerabilityHistory).filter(VulnerabilityHistory.vulnerability_id == vuln_id).all()
+    return history
+
+@app.get("/system/scanners")
+def get_scanner_info():
+    """
+    Returns data for the 'Scan Engine Core' tab.
+    """
+    return {
+        "engine_version": "2.4.0-CyberHUD",
+        "scanners": [
+            {"name": "Bandit", "type": "SAST", "status": "Ready", "capabilities": ["Python AST", "Security Best Practices"]},
+            {"name": "Semgrep", "type": "Polygolt SAST", "status": "Standby", "capabilities": ["Pattern Matching", "Data Flow"]}
+        ],
+        "total_rules": 450,
+        "mode": "Autonomous Self-Healing"
+    }
+
+@app.get("/config")
+def get_config():
+    return {
+        "roles": ["ADMIN", "DEVELOPER", "VIEWER"],
+        "retention_policy": "Forever",
+        "log_level": "DEBUG"
+    }
+
 @app.post("/patch/{vuln_id}")
 def generate_patch(vuln_id: str):
     from scan_engine.patching.generator import PatchGenerator
