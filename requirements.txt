@@ -1,0 +1,6 @@
+bandit
+semgrep
+pydantic
+typer
+sqlmodel
+jinja2

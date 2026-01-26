@@ -1,0 +1,34 @@
+{
+    "scan_id": "99cf35e7-dbaa-4e50-8d72-5008ff957a8c",
+    "timestamp": "2026-01-25T15:12:52.537446",
+    "status": "SUCCESS",
+    "vulnerabilities": [
+        {
+            "id": "cccb1e53-bbaa-4f53-8773-5cd579c8c46d",
+            "name": "B105: hardcoded_password_string",
+            "description": "Possible hardcoded password: 'supersecret123'",
+            "severity": "LOW",
+            "file_path": "test_data\\vulnerable.py",
+            "line_number": 5,
+            "scanner_name": "bandit",
+            "cwe_id": "259",
+            "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html"
+        },
+        {
+            "id": "604b5546-3cf4-442f-bb2c-de60bf2098fc",
+            "name": "B307: blacklist",
+            "description": "Use of possibly insecure function - consider using safer ast.literal_eval.",
+            "severity": "MEDIUM",
+            "file_path": "test_data\\vulnerable.py",
+            "line_number": 10,
+            "scanner_name": "bandit",
+            "cwe_id": "78",
+            "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/blacklists/blacklist_calls.html#b307-eval"
+        }
+    ],
+    "metadata": {
+        "target_path": "test_data",
+        "scan_type": "manual",
+        "scanner_count": 2
+    }
+}
