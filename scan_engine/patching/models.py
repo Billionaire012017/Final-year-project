@@ -8,6 +8,12 @@ class RiskLevel(str, Enum):
     MEDIUM = "MEDIUM"
     HIGH = "HIGH"
 
+class ValidationStatus(str, Enum):
+    PENDING = "PENDING"
+    PASSED = "PASSED"
+    FAILED = "FAILED"
+    ERROR = "ERROR"
+
 class PatchSuggestion(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     vulnerability_id: str = Field(index=True)
@@ -17,4 +23,6 @@ class PatchSuggestion(SQLModel, table=True):
     confidence_score: float
     risk_level: str
     risk_explanation: Optional[str] = None
+    validation_status: ValidationStatus = Field(default=ValidationStatus.PENDING)
+    validation_message: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)

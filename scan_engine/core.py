@@ -6,8 +6,11 @@ from scan_engine.scanners.bandit_scanner import BanditScanner
 from scan_engine.scanners.semgrep_scanner import SemgrepScanner
 from scan_engine.intel.db import create_db_and_tables, get_session
 from scan_engine.intel.enrichment import EnrichmentService
-from scan_engine.intel.models import VulnerabilityRecord
+from scan_engine.intel.models import VulnerabilityRecord, VulnerabilityHistory
 from scan_engine.patching.models import PatchSuggestion
+from scan_engine.patching.feedback import FeedbackRecord
+from scan_engine.alerts import AlertService, AlertRecord
+from scan_engine.audit import AuditService, SystemAudit
 
 class ScanEngine:
     def __init__(self):
@@ -17,9 +20,14 @@ class ScanEngine:
         ]
         create_db_and_tables()
         self.enricher = EnrichmentService()
+        self.alert_service = AlertService()
+        self.audit_service = AuditService()
 
     def run_scan(self, target_path: str, scan_type: str = "manual") -> ScanResult:
         scan_id = str(uuid.uuid4())
+        
+        self.audit_service.log_event("SCAN_START", f"Started scan on {target_path}")
+        
         all_vulnerabilities: List[Vulnerability] = []
         
         print(f"Starting scan {scan_id} on {target_path} (Type: {scan_type})")
@@ -39,6 +47,11 @@ class ScanEngine:
             try:
                 # Enrich and convert to Record
                 record = self.enricher.enrich_vulnerability(vuln)
+                
+                # Check CRITICAL Alert
+                if record.severity == "CRITICAL" or record.severity == "HIGH":
+                     self.alert_service.trigger_alert(record.severity, f"Detected {record.severity} vulnerability: {record.name} in {record.file_path}")
+
                 # Check if already exists (optional, simply merging or ignoring for now)
                 exists = session.get(VulnerabilityRecord, record.id)
                 if not exists:
@@ -48,6 +61,8 @@ class ScanEngine:
         
         session.commit()
         session.close()
+
+        self.audit_service.log_event("SCAN_COMPLETE", f"Completed scan with {len(all_vulnerabilities)} findings")
 
         # Determine status
         status = ScanStatus.SUCCESS

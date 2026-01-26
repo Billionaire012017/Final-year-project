@@ -1,10 +1,10 @@
 {
-    "scan_id": "99cf35e7-dbaa-4e50-8d72-5008ff957a8c",
-    "timestamp": "2026-01-25T15:12:52.537446",
+    "scan_id": "a2c693c1-1fc8-42a4-ad35-1bd8c8df9ca6",
+    "timestamp": "2026-01-26T06:42:22.966489",
     "status": "SUCCESS",
     "vulnerabilities": [
         {
-            "id": "cccb1e53-bbaa-4f53-8773-5cd579c8c46d",
+            "id": "cbac6c80-d624-4e8a-9922-1fb4f60a8a71",
             "name": "B105: hardcoded_password_string",
             "description": "Possible hardcoded password: 'supersecret123'",
             "severity": "LOW",
@@ -15,7 +15,7 @@
             "fix_recommendation": "More info: https://bandit.readthedocs.io/en/1.7.10/plugins/b105_hardcoded_password_string.html"
         },
         {
-            "id": "604b5546-3cf4-442f-bb2c-de60bf2098fc",
+            "id": "24bcf812-031c-4bb4-b190-76c843cded09",
             "name": "B307: blacklist",
             "description": "Use of possibly insecure function - consider using safer ast.literal_eval.",
             "severity": "MEDIUM",
