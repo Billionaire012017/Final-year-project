@@ -26,7 +26,7 @@ def read_root():
     """
     Serves the premium dashboard UI.
     """
-    index_path = os.path.join(os.path.dirname(__file__), "..", "public", "index.html")
+    index_path = os.path.join(os.path.dirname(__file__), "index.html")
     if not os.path.exists(index_path):
         return "<h1>Frontend Source Not Found</h1><p>Please ensure public/index.html exists.</p>"
     
