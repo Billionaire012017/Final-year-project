@@ -97,14 +97,47 @@ def get_audit():
     import json
     return json.loads(AuditService().export_logs_json())
 
+@app.get("/reports")
+def get_reports_metadata():
+    """
+    Returns metadata for executive reports.
+    """
+    return [
+        {"id": "R-101", "name": "Weekly Intrusion Summary", "status": "Generated", "size": "2.4 MB", "date": "2026-01-25"},
+        {"id": "R-102", "name": "Compliance Audit (ISO 27001)", "status": "Verified", "size": "5.1 MB", "date": "2026-01-24"},
+        {"id": "R-103", "name": "AI Remediation Effectiveness", "status": "Generated", "size": "1.8 MB", "date": "2026-01-23"}
+    ]
+
+@app.get("/network-topology")
+def get_network_topology():
+    """
+    Returns mockup topology data for the visualizer.
+    """
+    return {
+        "nodes": [
+            {"id": "Edge-01", "type": "Gateway", "status": "Secure", "load": "12%"},
+            {"id": "Core-DB", "type": "Storage", "status": "Protected", "load": "45%"},
+            {"id": "AI-Kernel", "type": "Compute", "status": "Active", "load": "88%"},
+            {"id": "Ext-Bridge", "type": "Proxy", "status": "Monitoring", "load": "5%"}
+        ],
+        "links": [
+            {"source": "Edge-01", "target": "Ext-Bridge", "latency": "2ms"},
+            {"source": "Ext-Bridge", "target": "AI-Kernel", "latency": "5ms"},
+            {"source": "AI-Kernel", "target": "Core-DB", "latency": "1ms"}
+        ]
+    }
+
 @app.get("/system/scanners")
 def get_scanner_info():
     return {
-        "engine_version": "3.0.0-PRO",
+        "engine_version": "3.2.0-ENTERPRISE",
         "scanners": [
             {"name": "Bandit", "type": "SAST", "status": "Ready", "capabilities": ["Python AST", "Security Best Practices"]},
-            {"name": "Semgrep", "type": "Polyglot", "status": "Standby", "capabilities": ["Taint Analysis", "Pattern Matching"]}
-        ]
+            {"name": "Semgrep", "type": "Polyglot SAST", "status": "Operational", "capabilities": ["Taint Analysis", "Pattern Matching"]},
+            {"name": "Trivy", "type": "SCA", "status": "Standby", "capabilities": ["Vulnerability Database", "SBOM"]}
+        ],
+        "total_rules": 1250,
+        "mode": "Autonomous Self-Healing"
     }
 
 @app.get("/vulnerabilities/{vuln_id}/source")
