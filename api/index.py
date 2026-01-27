@@ -74,6 +74,11 @@ def read_root():
 def health_check():
     return {"status": "operational", "engine": "SecLAB Core v3.0"}
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    from fastapi import Response
+    return Response(status_code=204)
+
 @app.get("/dashboard")
 def get_dashboard_metrics():
     analytics = AnalyticsService()
