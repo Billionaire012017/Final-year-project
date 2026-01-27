@@ -9,37 +9,41 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link
-        href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Fira+Code:wght@300;400;500&display=swap"
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=IBM+Plex+Mono:wght@300;400;500;600&display=swap"
         rel="stylesheet">
     <style>
         :root {
-            --accent: #0ea5e9;
+            --bg-deep: #09090b;
+            --bg-panel: #18181b;
+            --border: #27272a;
+            --accent: #3b82f6;
+            /* Enterprise Blue */
             --danger: #ef4444;
-            --success: #22c55e;
-            --zinc-950: #09090b;
-            --zinc-900: #18181b;
-            --zinc-800: #27272a;
+            --success: #10b981;
+            --text-muted: #71717a;
+            --text-main: #e4e4e7;
         }
 
         body {
-            font-family: 'Space Grotesk', sans-serif;
-            background-color: var(--zinc-950);
-            color: #a1a1aa;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            letter-spacing: -0.01em;
         }
 
         .mono {
-            font-family: 'Fira Code', monospace;
+            font-family: 'IBM Plex Mono', monospace;
         }
 
         .glass {
-            background: rgba(24, 24, 27, 0.8);
-            backdrop-filter: blur(24px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: #18181b;
+            /* Solid for Enterprise */
+            border: 1px solid var(--border);
         }
 
         .sidebar-active {
-            background: rgba(14, 165, 233, 0.1);
-            border-right: 3px solid var(--accent);
+            background: var(--bg-deep);
+            border-left: 4px solid var(--accent);
             color: #fff;
         }
 
@@ -49,72 +53,85 @@
 
         .tab-content.active {
             display: block;
-            animation: fadeIn 0.4s ease-out;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .matrix-grid {
-            background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 32px 32px;
-        }
-
-        .shimmer {
-            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.03), transparent);
-            background-size: 200% 100%;
-            animation: shimmer 2s infinite;
-        }
-
-        @keyframes shimmer {
-            0% {
-                background-position: 200% 0;
-            }
-
-            100% {
-                background-position: -200% 0;
-            }
+        .custom-active-bg {
+            background: linear-gradient(to right, rgba(59, 130, 246, 0.1), transparent);
         }
 
         .custom-scroll::-webkit-scrollbar {
-            width: 4px;
+            width: 5px;
         }
 
         .custom-scroll::-webkit-scrollbar-thumb {
-            background: var(--zinc-800);
-            border-radius: 10px;
+            background: var(--border);
+            border-radius: 4px;
         }
 
-        .node-pulse {
-            animation: pulse 2s infinite;
+        .enterprise-card {
+            background: var(--bg-panel);
+            border: 1px solid var(--border);
+            border-radius: 0.75rem;
+            /* Standard Enterprise radius */
         }
 
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.4);
-            }
+        .metric-value {
+            font-weight: 800;
+            letter-spacing: -0.05em;
+        }
 
-            70% {
-                box-shadow: 0 0 0 10px rgba(14, 165, 233, 0);
-            }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
 
+        .pulse-slow {
+            animation: pulse-slow 3s infinite;
+        }
+
+        @keyframes pulse-slow {
+
+            0%,
             100% {
-                box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
+                opacity: 1;
             }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        /* Tactical Overlays */
+        .tactical-border {
+            position: relative;
+        }
+
+        .tactical-border::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 4px;
+            border-top: 2px solid var(--accent);
+            border-left: 2px solid var(--accent);
+        }
+
+        .tactical-border::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 4px;
+            height: 4px;
+            border-bottom: 2px solid var(--accent);
+            border-right: 2px solid var(--accent);
         }
     </style>
 </head>
 
-<body class="overflow-hidden select-none matrix-grid">
+<body class="overflow-hidden select-none">
 
     <!-- OVERLAYS -->
     <div id="conn-lost"
@@ -134,17 +151,17 @@
     <div class="flex h-screen w-full relative">
 
         <!-- SIDENAV -->
-        <aside class="w-72 glass border-r border-white/5 flex flex-col z-50">
-            <div class="p-8 border-b border-white/5">
-                <div class="flex items-center gap-4">
-                    <div
-                        class="w-10 h-10 bg-sky-500 rounded-xl flex items-center justify-center shadow-lg shadow-sky-900/40">
-                        <i data-lucide="shield-check" class="text-white w-6 h-6"></i>
+        <aside class="w-64 glass border-r border-white/5 flex flex-col z-50">
+            <div class="p-6 border-b border-white/5 bg-zinc-900/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+                        <i data-lucide="shield" class="text-white w-5 h-5"></i>
                     </div>
                     <div>
-                        <h1 class="text-white font-black text-xl tracking-tighter italic">SecLAB <span
-                                class="text-sky-500 font-sans">α</span></h1>
-                        <p class="text-[9px] font-black text-zinc-600 uppercase tracking-widest">Enterprise SOC</p>
+                        <h1 class="text-white font-extrabold text-lg tracking-tight">SecLAB <span
+                                class="text-blue-500">Core</span></h1>
+                        <p class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">Enterprise Security Hub
+                        </p>
                     </div>
                 </div>
             </div>
@@ -192,15 +209,20 @@
                 </button>
                 <button onclick="switchTab('network')" id="nav-network"
                     class="nav-btn w-full flex items-center gap-4 px-8 py-3.5 hover:bg-white/5 transition group">
-                    <i data-lucide="network" class="w-4 h-4 group-hover:text-sky-500"></i> <span
-                        class="font-bold text-sm">Infrastructure</span>
+                    <i data-lucide="shield-alert" class="w-4 h-4 group-hover:text-sky-500"></i> <span
+                        class="font-bold text-sm">Infra Monitor</span>
                 </button>
                 <button onclick="switchTab('engine')" id="nav-engine"
                     class="nav-btn w-full flex items-center gap-4 px-8 py-3.5 hover:bg-white/5 transition group">
                     <i data-lucide="cpu" class="w-4 h-4 group-hover:text-sky-500"></i> <span
-                        class="font-bold text-sm">Engine Core</span>
+                        class="font-bold text-sm">System Core</span>
                 </button>
                 <button onclick="switchTab('audit')" id="nav-audit"
+                    class="nav-btn w-full flex items-center gap-4 px-8 py-3.5 hover:bg-white/5 transition group">
+                    <i data-lucide="book-open" class="w-4 h-4 group-hover:text-sky-500"></i> <span
+                        class="font-bold text-sm">Compliance Ledger</span>
+                </button>
+                <button onclick="switchTab('audit-stream')" id="nav-audit-stream"
                     class="nav-btn w-full flex items-center gap-4 px-8 py-3.5 hover:bg-white/5 transition group">
                     <i data-lucide="terminal" class="w-4 h-4 group-hover:text-sky-500"></i> <span
                         class="font-bold text-sm">Audit Stream</span>
@@ -227,11 +249,12 @@
         <main class="flex-1 flex flex-col min-w-0">
 
             <!-- TOOLBAR -->
-            <header class="h-20 glass border-b border-white/5 flex items-center justify-between px-10 relative z-40">
-                <div class="flex items-center gap-6">
-                    <div class="w-1.5 h-6 bg-sky-500 rounded-full"></div>
+            <header
+                class="h-16 glass border-b border-white/5 flex items-center justify-between px-8 relative z-40 bg-zinc-900/50">
+                <div class="flex items-center gap-4">
+                    <div class="w-1 h-5 bg-blue-500 rounded-full"></div>
                     <div>
-                        <h2 id="tab-label" class="text-xl font-black text-white tracking-widest uppercase italic">
+                        <h2 id="tab-label" class="text-sm font-bold text-white tracking-widest uppercase">
                             Operational_Alerts</h2>
                     </div>
                 </div>
@@ -259,65 +282,96 @@
             <div class="flex-1 overflow-y-auto p-12 custom-scroll relative bg-zinc-950/40">
 
                 <!-- 1. DASHBOARD -->
-                <section id="tab-dashboard" class="tab-content active space-y-12">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <section id="tab-dashboard" class="tab-content active space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         <div
-                            class="lg:col-span-2 p-10 bg-zinc-900/50 rounded-[2.5rem] border border-white/5 flex items-center gap-12 relative overflow-hidden">
-                            <div class="absolute -right-20 -bottom-20 opacity-5 pointer-events-none">
-                                <i data-lucide="shield" class="w-80 h-80 text-white"></i>
+                            class="lg:col-span-2 p-8 enterprise-card flex items-center gap-10 relative overflow-hidden">
+                            <div class="absolute -right-10 -bottom-10 opacity-5 pointer-events-none">
+                                <i data-lucide="shield" class="w-64 h-64 text-white"></i>
                             </div>
                             <div
-                                class="shrink-0 w-36 h-36 rounded-full border-[10px] border-zinc-900 flex items-center justify-center relative shadow-[inset_0_0_50px_rgba(0,0,0,0.5)] bg-zinc-950">
-                                <span class="text-4xl font-black text-white" id="dash-health">--</span>
-                                <svg class="absolute inset-0 -rotate-90 w-36 h-36">
-                                    <circle cx="72" cy="72" r="62" fill="transparent" stroke="currentColor"
-                                        stroke-width="10" class="text-zinc-800"></circle>
-                                    <circle id="health-ring" cx="72" cy="72" r="62" fill="transparent"
-                                        stroke="currentColor" stroke-width="10" stroke-dasharray="390"
-                                        stroke-dashoffset="390" class="text-sky-500 transition-all duration-1000">
+                                class="shrink-0 w-32 h-32 rounded-full border-8 border-zinc-900 flex items-center justify-center relative bg-zinc-950">
+                                <span class="text-3xl font-bold text-white metric-value" id="dash-health">--</span>
+                                <svg class="absolute inset-0 -rotate-90 w-32 h-32">
+                                    <circle cx="64" cy="64" r="56" fill="transparent" stroke="currentColor"
+                                        stroke-width="8" class="text-zinc-800"></circle>
+                                    <circle id="health-ring" cx="64" cy="64" r="56" fill="transparent"
+                                        stroke="currentColor" stroke-width="8" stroke-dasharray="351"
+                                        stroke-dashoffset="351" class="text-blue-500 transition-all duration-1000">
                                     </circle>
                                 </svg>
                             </div>
                             <div>
-                                <p class="text-[11px] font-black text-sky-500 uppercase tracking-[0.4em] mb-3">Overall
-                                    Health Score</p>
-                                <h3 class="text-white text-3xl font-black tracking-tighter mb-4">Infrastructure
-                                    Protected</h3>
-                                <p class="text-zinc-500 text-sm leading-relaxed max-w-sm">Autonomous logic gates are
-                                    correctly filtering 98.4% of high-risk signatures in the current kernel loop.</p>
+                                <p class="text-[10px] font-bold text-blue-500 uppercase tracking-widest mb-1">Security
+                                    Health Index</p>
+                                <h3 class="text-white text-2xl font-bold tracking-tight mb-3">Executive Oversight</h3>
+                                <p class="text-zinc-500 text-xs leading-relaxed max-w-sm">Real-time posture analysis
+                                    based on active threat vectors and autonomous remediation efficiency.</p>
                             </div>
                         </div>
-                        <div
-                            class="p-10 bg-zinc-900/50 rounded-[2.5rem] border border-white/5 flex flex-col justify-center">
-                            <p class="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-4">Detected
-                                Vulnerabilities</p>
-                            <h2 class="text-5xl font-black text-white" id="dash-total">--</h2>
-                            <div class="mt-4 flex gap-2"><span
-                                    class="px-2 py-0.5 bg-red-500/10 text-red-500 text-[8px] font-bold rounded">LIVE_DATA</span>
+                        <div class="p-8 enterprise-card flex flex-col justify-center">
+                            <div class="flex justify-between items-start mb-4">
+                                <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Active Threats
+                                </p>
+                                <i data-lucide="alert-triangle" class="w-4 h-4 text-red-500"></i>
+                            </div>
+                            <h2 class="text-5xl font-extrabold text-white metric-value" id="dash-active">--</h2>
+                            <div class="mt-4">
+                                <span
+                                    class="px-2 py-1 bg-red-500/10 text-red-500 text-[9px] font-bold rounded uppercase">Unresolved</span>
                             </div>
                         </div>
-                        <div
-                            class="p-10 bg-zinc-900/50 rounded-[2.5rem] border border-white/5 flex flex-col justify-center">
-                            <p class="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-4">AI Patch
-                                Efficiency</p>
-                            <h2 class="text-5xl font-black text-sky-400" id="dash-rate">--%</h2>
-                            <div class="mt-4 flex gap-2"><span
-                                    class="px-2 py-0.5 bg-sky-500/10 text-sky-500 text-[8px] font-bold rounded">AI_TRUSTED</span>
+                        <div class="p-8 enterprise-card flex flex-col justify-center border-l-4 border-l-blue-500">
+                            <div class="flex justify-between items-start mb-4">
+                                <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Auto-Healed</p>
+                                <i data-lucide="check-circle" class="w-4 h-4 text-emerald-500"></i>
+                            </div>
+                            <h2 class="text-5xl font-extrabold text-white metric-value" id="dash-healed">--</h2>
+                            <div class="mt-4">
+                                <span
+                                    class="px-2 py-1 bg-emerald-500/10 text-emerald-500 text-[9px] font-bold rounded uppercase">AI
+                                    Success</span>
                             </div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                        <div
-                            class="lg:col-span-2 p-10 bg-zinc-900/40 rounded-[2.5rem] border border-white/5 h-[400px] flex flex-col">
-                            <h4 class="text-white font-black text-[10px] uppercase tracking-widest mb-10 opacity-50">
-                                Attack Surface Coverage</h4>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="p-8 enterprise-card flex flex-col justify-center">
+                            <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Total Detected
+                            </p>
+                            <h2 class="text-4xl font-extrabold text-white metric-value" id="dash-total">--</h2>
+                            <p class="text-[9px] text-zinc-600 mt-2 font-bold uppercase">Total Historical Events</p>
+                        </div>
+                        <div class="p-8 enterprise-card flex flex-col justify-center">
+                            <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-4">Mean Time To
+                                Repair</p>
+                            <h2 class="text-4xl font-extrabold text-white metric-value" id="dash-mttr">--s</h2>
+                            <p class="text-[9px] text-zinc-600 mt-2 font-bold uppercase">AI Resolution Speed</p>
+                        </div>
+                        <div class="lg:col-span-2 p-8 enterprise-card">
+                            <p class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-6">Risk
+                                Distribution</p>
+                            <div id="risk-distribution-hud" class="flex gap-4 h-24">
+                                <!-- Dynamic Risk Bars -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <div class="lg:col-span-2 p-8 enterprise-card h-[400px] flex flex-col">
+                            <div class="flex justify-between items-center mb-10">
+                                <h4 class="text-white font-bold text-[10px] uppercase tracking-widest opacity-70">Attack
+                                    Surface Coverage</h4>
+                                <div class="flex items-center gap-2 text-[9px] font-mono text-zinc-600 uppercase">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span> Live Telemetry
+                                </div>
+                            </div>
                             <div class="flex-1 min-h-0 relative">
                                 <canvas id="mainFlowChart"></canvas>
                             </div>
                         </div>
-                        <div class="p-10 bg-zinc-900/40 rounded-[2.5rem] border border-white/5 h-[400px] flex flex-col">
-                            <h4 class="text-white font-black text-[10px] uppercase tracking-widest mb-10 opacity-50">
+                        <div class="p-8 enterprise-card h-[400px] flex flex-col border-t-2 border-t-red-900/40">
+                            <h4 class="text-white font-bold text-[10px] uppercase tracking-widest mb-10 opacity-70">
                                 Real-Time Event Pulse</h4>
                             <div id="activity-log" class="flex-1 overflow-y-auto custom-scroll space-y-4 pr-2">
                                 <!-- Dynamic Logs -->
@@ -327,28 +381,36 @@
                 </section>
 
                 <!-- 2. VULNERABILITIES -->
-                <section id="tab-vulnerabilities" class="tab-content space-y-10">
-                    <div class="flex justify-between items-end">
-                        <h3 class="text-white text-3xl font-black tracking-tighter uppercase italic">Vulnerability
-                            Repository</h3>
+                <section id="tab-vulnerabilities" class="tab-content space-y-8">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-white text-2xl font-bold tracking-tight uppercase">Vulnerability Signature
+                                Bank</h3>
+                            <p class="text-zinc-500 text-[10px] uppercase tracking-widest font-bold mt-1">Authorized
+                                Database of Systemic Risks</p>
+                        </div>
                         <div class="flex gap-4">
-                            <input type="text" placeholder="Grep metadata..."
-                                class="bg-zinc-900 border border-white/5 px-6 py-2.5 rounded-xl text-xs text-white focus:outline-none focus:border-sky-500/40 transition-all w-80 font-bold">
+                            <div class="relative">
+                                <i data-lucide="search"
+                                    class="absolute left-4 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-zinc-600"></i>
+                                <input type="text" placeholder="Grep metadata..."
+                                    class="bg-zinc-900 border border-white/5 pl-10 pr-6 py-2.5 rounded-lg text-[11px] text-white focus:outline-none focus:border-blue-500/40 transition-all w-80 font-medium">
+                            </div>
                             <button
-                                class="bg-zinc-800 hover:bg-zinc-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition">Export
+                                class="bg-zinc-800 hover:bg-zinc-700 text-white px-5 py-2.5 rounded-lg text-[10px] font-bold uppercase transition border border-white/5">Export
                                 CSV</button>
                         </div>
                     </div>
-                    <div class="bg-zinc-900/30 rounded-[2.5rem] border border-white/5 overflow-hidden">
+                    <div class="enterprise-card overflow-hidden">
                         <table class="w-full text-left">
                             <thead
-                                class="bg-zinc-900/80 text-[10px] font-bold text-sky-500 uppercase tracking-[0.2em] border-b border-white/5">
+                                class="bg-zinc-900 text-[9px] font-bold text-blue-500 uppercase tracking-widest border-b border-white/5">
                                 <tr>
-                                    <th class="px-10 py-6">Vulnerability Signature</th>
-                                    <th class="px-10 py-6">Source Context</th>
-                                    <th class="px-10 py-6 text-center">Severity</th>
-                                    <th class="px-10 py-6 text-center">Status</th>
-                                    <th class="px-10 py-6 text-right">Laboratory Link</th>
+                                    <th class="px-8 py-5">Vulnerability Signature</th>
+                                    <th class="px-8 py-5">Source Context</th>
+                                    <th class="px-8 py-5 text-center">Severity</th>
+                                    <th class="px-8 py-5 text-center">Status</th>
+                                    <th class="px-8 py-5 text-right">Laboratory Link</th>
                                 </tr>
                             </thead>
                             <tbody id="vuln-table-body"
@@ -359,178 +421,792 @@
                     </div>
                 </section>
 
-                <!-- 3. AI PATCH LAB -->
+                <!-- 3. VULNERABILITY INVESTIGATION INTERFACE -->
                 <section id="tab-patch-lab" class="tab-content h-[calc(100vh-280px)]">
                     <div class="grid grid-cols-12 gap-8 h-full">
-                        <div
-                            class="col-span-3 bg-zinc-900/50 rounded-[2rem] border border-white/5 p-6 flex flex-col overflow-hidden">
+                        <!-- 1. Investigation Queue -->
+                        <div class="col-span-12 lg:col-span-3 enterprise-card p-6 flex flex-col overflow-hidden">
                             <h4
-                                class="text-white font-black text-[10px] uppercase tracking-widest mb-8 opacity-50 px-2">
-                                Remediation Queue</h4>
+                                class="text-white font-bold text-[10px] uppercase tracking-widest mb-8 opacity-70 px-2 border-l-2 border-blue-500 pl-4">
+                                Investigation Queue</h4>
                             <div id="lab-vuln-list" class="flex-1 overflow-y-auto space-y-4 pr-3 custom-scroll">
-                                <!-- Vulnerability Cards -->
+                                <!-- Dynamic Vuln Cards -->
                             </div>
                         </div>
+
+                        <!-- 2. Source Code / Diff Core -->
                         <div
-                            class="col-span-9 bg-zinc-950 rounded-[3rem] border border-white/5 flex flex-col overflow-hidden relative shadow-2xl">
+                            class="col-span-12 lg:col-span-6 bg-zinc-950 rounded-xl border border-white/5 flex flex-col overflow-hidden relative shadow-2xl">
+                            <!-- Header / Controls -->
                             <div
-                                class="h-16 border-b border-white/5 flex items-center justify-between px-10 bg-zinc-900/20">
-                                <div class="flex items-center gap-4">
+                                class="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-zinc-900/50">
+                                <div class="flex items-center gap-6">
                                     <div class="flex gap-1.5">
-                                        <div class="w-2.5 h-2.5 rounded-full bg-zinc-800"></div>
-                                        <div class="w-2.5 h-2.5 rounded-full bg-zinc-800"></div>
-                                        <div class="w-2.5 h-2.5 rounded-full bg-zinc-800"></div>
+                                        <div class="w-2.5 h-2.5 rounded-full bg-red-500/20 border border-red-500/50">
+                                        </div>
+                                        <div
+                                            class="w-2.5 h-2.5 rounded-full bg-amber-500/20 border border-amber-500/50">
+                                        </div>
+                                        <div
+                                            class="w-2.5 h-2.5 rounded-full bg-emerald-500/20 border border-emerald-500/50">
+                                        </div>
                                     </div>
-                                    <span id="editor-filename"
-                                        class="text-[11px] font-mono text-zinc-500 font-bold">/sys/core/audit.py</span>
+                                    <div>
+                                        <span id="editor-filename"
+                                            class="text-[11px] font-mono text-zinc-400 font-bold tracking-tight">investigating_source_artifact...</span>
+                                        <div class="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">
+                                            Telemetry Status: Analysis_Active</div>
+                                    </div>
                                 </div>
-                                <div class="flex gap-4">
-                                    <button onclick="approveNeuralPatch()" id="btn-approve"
-                                        class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:hidden">Apply
-                                        Fix</button>
-                                    <button onclick="rejectNeuralPatch()" id="btn-reject"
-                                        class="bg-zinc-800 hover:bg-zinc-700 text-zinc-400 px-6 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all disabled:hidden">Reject
-                                        Logic</button>
+                                <div class="flex bg-zinc-950 p-1.5 rounded-2xl border border-white/5">
+                                    <button id="view-mode-original" onclick="setViewMode('original')"
+                                        class="px-5 py-2 text-[9px] font-black uppercase rounded-xl bg-zinc-800 text-white transition-all shadow-lg active:scale-95">Source</button>
+                                    <button id="view-mode-fixed" onclick="setViewMode('fixed')"
+                                        class="px-5 py-2 text-[9px] font-black uppercase rounded-xl text-zinc-600 hover:text-zinc-400 transition-all active:scale-95">AI
+                                        Fix Preview</button>
                                 </div>
                             </div>
-                            <div class="flex-1 flex overflow-hidden">
+
+                            <!-- Viewer -->
+                            <div class="flex-1 flex overflow-hidden bg-zinc-950/50">
                                 <div id="editor-nums"
-                                    class="w-16 bg-zinc-900/30 text-zinc-700 text-right pr-4 py-8 mono text-[11px] border-r border-white/5 select-none">
+                                    class="w-16 bg-zinc-900/40 text-zinc-700 text-right pr-6 py-10 mono text-[11px] border-r border-white/5 select-none font-bold">
                                 </div>
                                 <div id="editor-body"
-                                    class="flex-1 overflow-auto mono text-[12px] p-8 leading-relaxed relative whitespace-pre bg-transparent italic text-zinc-500">
+                                    class="flex-1 overflow-auto mono text-[12px] p-10 leading-relaxed relative whitespace-pre text-zinc-500 italic">
                                     <div
                                         class="absolute inset-0 flex flex-col items-center justify-center opacity-10 pointer-events-none">
-                                        <i data-lucide="brain-circuit" class="w-20 h-20 mb-4"></i>
-                                        <span class="font-bold tracking-[1.5em] uppercase text-xs">Awaiting
-                                            Analysis</span>
+                                        <i data-lucide="scan-face" class="w-24 h-24 mb-6"></i>
+                                        <span class="font-black tracking-[1.5em] uppercase text-xs">Waiting for
+                                            Payload</span>
                                     </div>
                                 </div>
                             </div>
-                            <!-- Code Warning Tooltip -->
-                            <div id="code-alert-box"
-                                class="absolute bottom-10 left-10 right-10 glass p-8 rounded-[2rem] border-l-[8px] border-red-500 hidden items-start gap-6 transform translate-y-10 transition duration-500">
-                                <i data-lucide="alert-octagon" class="text-red-500 w-6 h-6 shrink-0 mt-1"></i>
-                                <div>
-                                    <p class="text-white font-black text-sm uppercase tracking-tight mb-1 italic">
-                                        Signature Detected</p>
-                                    <p id="alert-text-body" class="text-xs text-zinc-400 leading-relaxed max-w-2xl">
-                                        Potential buffer overflow detected at L23. AI suggests replacing subprocess call
-                                        with safer alternative.</p>
+
+                            <!-- Resolution Actions -->
+                            <div class="p-8 border-t border-white/5 flex gap-4 bg-zinc-900/50">
+                                <button onclick="approveNeuralPatch()" id="btn-approve"
+                                    class="flex-1 py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all shadow-xl active:scale-95 flex items-center justify-center gap-3">
+                                    <i data-lucide="shield-check" class="w-4 h-4 text-blue-100"></i>
+                                    Commit Integrity Fix
+                                </button>
+                                <button onclick="rejectNeuralPatch()" id="btn-reject"
+                                    class="px-8 py-4 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all active:scale-95 border border-white/5">
+                                    Bypass
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- 3. AI Analysis & Guidance -->
+                        <div class="col-span-12 lg:col-span-3 space-y-8 overflow-y-auto custom-scroll pr-2">
+                            <div class="p-8 enterprise-card space-y-6">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                                        <i data-lucide="brain" class="w-4 h-4 text-blue-500"></i>
+                                    </div>
+                                    <h5 class="text-white font-bold text-[10px] uppercase tracking-widest opacity-70">
+                                        AI Logic Trace</h5>
+                                </div>
+                                <p id="patch-explanation"
+                                    class="text-[11px] text-zinc-400 leading-relaxed border-l-2 border-zinc-700 pl-4">
+                                    Initialize investigation to see AI logic...</p>
+                            </div>
+
+                            <div class="p-8 bg-emerald-500/5 rounded-xl border border-emerald-500/10 space-y-6">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                                        <i data-lucide="shield" class="w-4 h-4 text-emerald-500"></i>
+                                    </div>
+                                    <h5
+                                        class="text-emerald-500 font-bold text-[10px] uppercase tracking-widest opacity-80">
+                                        Resolution Guidance</h5>
+                                </div>
+                                <p id="patch-guidance"
+                                    class="text-[11px] text-zinc-500 leading-relaxed font-bold uppercase tracking-tight">
+                                    Security protocols will appear here.</p>
+                            </div>
+
+                            <div class="p-6 bg-zinc-950/80 rounded-xl border border-white/5">
+                                <h6 class="text-zinc-600 font-bold text-[9px] uppercase tracking-widest mb-3">Forensic
+                                    Integrity Score</h6>
+                                <div class="flex items-end gap-2">
+                                    <span id="patch-risk-score"
+                                        class="text-3xl font-extrabold text-white metric-value">0.0</span>
+                                    <span class="text-[9px] font-bold text-zinc-700 uppercase mb-1">/ 10.0 Risk</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- 4. RISK ASSESSMENT -->
-                <section id="tab-risk" class="tab-content space-y-10">
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                        <div class="p-12 bg-zinc-900/50 rounded-[2.5rem] border border-white/5 space-y-10">
-                            <h4 class="text-white font-black uppercase tracking-widest text-xs opacity-50">Impact
-                                Visualization</h4>
-                            <div class="grid grid-cols-2 gap-6">
-                                <div
-                                    class="p-8 bg-zinc-950 rounded-3xl border border-white/5 border-l-4 border-red-500">
-                                    <p class="text-[10px] font-bold text-zinc-600 uppercase mb-2">Severity</p>
-                                    <h5 class="text-2xl font-black text-white italic">CRITICAL</h5>
+                <!-- 4.1 AI DECISION TRANSPARENCY MODULE -->
+                <section id="tab-logic" class="tab-content h-[calc(100vh-280px)]">
+                    <div class="grid grid-cols-12 gap-8 h-full">
+                        <!-- Left: Decision Flow (The "How") -->
+                        <div class="col-span-12 lg:col-span-4 flex flex-col gap-6">
+                            <div class="p-8 enterprise-card flex flex-col gap-8">
+                                <div class="flex items-center gap-3">
+                                    <div
+                                        class="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                                        <i data-lucide="brain-circuit" class="w-5 h-5 text-blue-500"></i>
+                                    </div>
+                                    <h4 class="text-white font-bold text-[11px] uppercase tracking-widest">
+                                        Neural Reasoning Path</h4>
                                 </div>
-                                <div
-                                    class="p-8 bg-zinc-950 rounded-3xl border border-white/5 border-l-4 border-sky-500">
-                                    <p class="text-[10px] font-bold text-zinc-600 uppercase mb-2">Confidence</p>
-                                    <h5 class="text-2xl font-black text-white italic">92%</h5>
-                                </div>
-                                <div
-                                    class="p-8 bg-zinc-950 rounded-3xl border border-white/5 border-l-4 border-amber-500">
-                                    <p class="text-[10px] font-bold text-zinc-600 uppercase mb-2">Exposure</p>
-                                    <h5 class="text-2xl font-black text-white italic">WIDE</h5>
-                                </div>
-                                <div class="p-8 bg-zinc-950 rounded-3xl border border-white/5 border-l-4 border-white">
-                                    <p class="text-[10px] font-bold text-zinc-600 uppercase mb-2">Complexity</p>
-                                    <h5 class="text-2xl font-black text-white italic">LOW</h5>
+                                <div id="logic-steps-flow" class="space-y-1 relative">
+                                    <!-- Dynamic Flow Steps -->
+                                    <div
+                                        class="absolute left-6 top-8 bottom-8 w-0.5 bg-zinc-800 border-l border-white/5">
+                                    </div>
+                                    <div class="logic-step relative z-10 flex gap-6 pb-10 opacity-30 transition-all duration-500"
+                                        id="step-detection">
+                                        <div
+                                            class="w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-800 flex items-center justify-center shrink-0">
+                                            <i data-lucide="radar" class="w-4 h-4 text-zinc-600"></i>
+                                        </div>
+                                        <div>
+                                            <h5
+                                                class="text-zinc-400 font-black text-[11px] uppercase tracking-widest mb-1">
+                                                Detection</h5>
+                                            <p class="text-[9px] text-zinc-600 font-bold uppercase">Anomaly
+                                                Identification</p>
+                                        </div>
+                                    </div>
+                                    <div class="logic-step relative z-10 flex gap-6 pb-10 opacity-30 transition-all duration-500"
+                                        id="step-recognition">
+                                        <div
+                                            class="w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-800 flex items-center justify-center shrink-0">
+                                            <i data-lucide="fingerprint" class="w-4 h-4 text-zinc-600"></i>
+                                        </div>
+                                        <div>
+                                            <h5
+                                                class="text-zinc-400 font-black text-[11px] uppercase tracking-widest mb-1">
+                                                Recognition</h5>
+                                            <p class="text-[9px] text-zinc-600 font-bold uppercase">Pattern Heuristics
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="logic-step relative z-10 flex gap-6 pb-10 opacity-30 transition-all duration-500"
+                                        id="step-selection">
+                                        <div
+                                            class="w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-800 flex items-center justify-center shrink-0">
+                                            <i data-lucide="wrench" class="w-4 h-4 text-zinc-600"></i>
+                                        </div>
+                                        <div>
+                                            <h5
+                                                class="text-zinc-400 font-black text-[11px] uppercase tracking-widest mb-1">
+                                                Fix Selection</h5>
+                                            <p class="text-[9px] text-zinc-600 font-bold uppercase">Solution Synthesis
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div class="logic-step relative z-10 flex gap-6 opacity-30 transition-all duration-500"
+                                        id="step-validation">
+                                        <div
+                                            class="w-12 h-12 rounded-full bg-zinc-950 border-4 border-zinc-800 flex items-center justify-center shrink-0">
+                                            <i data-lucide="shield-check" class="w-4 h-4 text-zinc-600"></i>
+                                        </div>
+                                        <div>
+                                            <h5
+                                                class="text-zinc-400 font-black text-[11px] uppercase tracking-widest mb-1">
+                                                Validation</h5>
+                                            <p class="text-[9px] text-zinc-600 font-bold uppercase">Integrity Testing
+                                            </p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Right: Detailed Reasoning Terminal (The "Why") -->
                         <div
-                            class="p-12 bg-zinc-900/50 rounded-[2.5rem] border border-white/5 flex flex-col items-center justify-center space-y-10 text-center relative overflow-hidden">
-                            <div class="absolute inset-0 shimmer opacity-10 pointer-events-none"></div>
-                            <i data-lucide="target" class="w-20 h-20 text-sky-500/20"></i>
-                            <div>
-                                <h3
-                                    class="text-white text-3xl font-black tracking-tighter mb-4 italic uppercase underline decoration-sky-500/20 underline-offset-8">
-                                    Crisis Logic Engine</h3>
-                                <p class="text-zinc-500 text-sm leading-relaxed max-w-xs">Normalized security score is
-                                    calculated using multi-vector analysis across 12 rule parameters.</p>
+                            class="col-span-12 lg:col-span-8 bg-zinc-950 rounded-[3rem] border border-white/5 overflow-hidden flex flex-col shadow-2xl relative">
+                            <div
+                                class="h-16 border-b border-white/5 flex items-center justify-between px-10 bg-black/40">
+                                <div class="flex items-center gap-4">
+                                    <div class="flex gap-1.5">
+                                        <div class="w-2.5 h-2.5 rounded-full bg-red-500/20"></div>
+                                        <div class="w-2.5 h-2.5 rounded-full bg-amber-500/20"></div>
+                                        <div class="w-2.5 h-2.5 rounded-full bg-emerald-500/20"></div>
+                                    </div>
+                                    <h5 class="text-zinc-500 font-black text-[9px] uppercase tracking-[0.3em] ml-4">
+                                        Transparency_Console.v5</h5>
+                                </div>
+                                <div id="logic-conf-badge"
+                                    class="px-3 py-1 bg-sky-500/10 border border-sky-500/20 rounded-full text-[9px] font-black text-sky-500 uppercase tracking-widest opacity-0 transition-opacity">
+                                    CONFIDENCE: 92%</div>
+                            </div>
+                            <div id="logic-reasoning-terminal"
+                                class="flex-1 p-10 font-mono text-[12px] leading-loose text-zinc-500 overflow-auto custom-scroll">
+                                <div class="flex gap-4 opacity-50 italic">[SYSTEM] Initializing decision audit module...
+                                </div>
+                                <div class="flex gap-4 opacity-50 italic">[SYSTEM] Awaiting neural trace data source...
+                                </div>
+                            </div>
+                            <div class="p-8 bg-zinc-900/30 border-t border-white/5">
+                                <p
+                                    class="text-[10px] text-zinc-600 font-bold uppercase tracking-widest flex items-center gap-3 italic">
+                                    <i data-lucide="info" class="w-3 h-3"></i>
+                                    Note: This interface is for audit and validation purposes only. Direct modification
+                                    of AI reasoning is restricted to maintain chain-of-custody.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. RISK ASSESSMENT ENGINE -->
+                <section id="tab-risk"
+                    class="tab-content space-y-10 h-[calc(100vh-280px)] overflow-y-auto custom-scroll pr-4">
+                    <div class="grid grid-cols-12 gap-8">
+                        <!-- High Level Risk Score -->
+                        <div
+                            class="col-span-12 lg:col-span-4 p-8 enterprise-card flex flex-col items-center justify-center text-center relative overflow-hidden h-[400px]">
+                            <div class="relative w-40 h-40 flex items-center justify-center mb-8">
+                                <svg class="w-full h-full -rotate-90">
+                                    <circle cx="80" cy="80" r="72" stroke="currentColor" stroke-width="4"
+                                        fill="transparent" class="text-zinc-800" />
+                                    <circle id="risk-gauge-circle" cx="80" cy="80" r="72" stroke="currentColor"
+                                        stroke-width="10" fill="transparent" stroke-dasharray="452"
+                                        stroke-dashoffset="452"
+                                        class="text-blue-500 transition-all duration-1000 ease-out" />
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span id="risk-engine-score"
+                                        class="text-5xl font-extrabold text-white metric-value">0.0</span>
+                                    <span
+                                        class="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mt-1">DANGER_INDEX</span>
+                                </div>
+                            </div>
+                            <h4 id="risk-impact-classification"
+                                class="text-lg font-bold text-white tracking-widest uppercase border-b-2 border-blue-500/40 pb-2">
+                                AWAITING_INPUT</h4>
+                        </div>
+
+                        <!-- Multi-Vector Analysis -->
+                        <div
+                            class="col-span-12 lg:col-span-8 p-8 bg-zinc-950 rounded-xl border border-white/5 space-y-10 h-[400px] flex flex-col">
+                            <div class="flex justify-between items-center">
+                                <h4 class="text-white font-bold uppercase tracking-widest text-[10px] opacity-70">
+                                    Normalized Risk Vectors</h4>
+                                <div
+                                    class="px-3 py-1 bg-blue-500/10 border border-blue-500/20 rounded-md text-[8px] font-bold text-blue-500 uppercase">
+                                    Heuristic v5.0</div>
+                            </div>
+                            <div class="grid grid-cols-2 lg:grid-cols-4 gap-6 flex-1">
+                                <div
+                                    class="p-6 enterprise-card flex flex-col justify-between group hover:border-red-500/30 transition duration-500">
+                                    <span
+                                        class="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Severity</span>
+                                    <h5 id="risk-v-sev" class="text-xl font-bold text-white metric-value">--</h5>
+                                    <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div id="risk-b-sev" class="h-full bg-red-500 transition-all duration-1000"
+                                            style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="p-6 enterprise-card flex flex-col justify-between group hover:border-amber-500/30 transition duration-500">
+                                    <span
+                                        class="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Exploitability</span>
+                                    <h5 id="risk-v-expl" class="text-xl font-bold text-white metric-value">--</h5>
+                                    <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div id="risk-b-expl" class="h-full bg-amber-500 transition-all duration-1000"
+                                            style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="p-6 enterprise-card flex flex-col justify-between group hover:border-blue-500/30 transition duration-500">
+                                    <span
+                                        class="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Exposure</span>
+                                    <h5 id="risk-v-exp" class="text-xl font-bold text-white metric-value">--</h5>
+                                    <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div id="risk-b-exp" class="h-full bg-blue-500 transition-all duration-1000"
+                                            style="width: 0%"></div>
+                                    </div>
+                                </div>
+                                <div
+                                    class="p-6 enterprise-card flex flex-col justify-between group hover:border-white/30 transition duration-500">
+                                    <span class="text-[9px] font-bold text-zinc-600 uppercase tracking-widest">Asset
+                                        Criticality</span>
+                                    <h5 id="risk-v-crit" class="text-xl font-bold text-white metric-value">--</h5>
+                                    <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div id="risk-b-crit" class="h-full bg-white transition-all duration-1000"
+                                            style="width: 0%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Business Impact Matrix -->
+                        <div class="col-span-12 p-12 bg-zinc-900/20 rounded-[3rem] border border-white/5 space-y-8">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-10 h-10 rounded-2xl bg-sky-500/10 flex items-center justify-center border border-sky-500/20">
+                                    <i data-lucide="bar-chart-3" class="w-5 h-5 text-sky-500"></i>
+                                </div>
+                                <h4 class="text-white font-black text-[12px] uppercase tracking-widest">Enterprise
+                                    Business Impact Projection</h4>
+                            </div>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                                <div class="p-8 bg-zinc-950/50 rounded-[2rem] border border-white/5 space-y-4">
+                                    <h6 class="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Strategic
+                                        Impact</h6>
+                                    <p class="text-zinc-400 text-xs leading-relaxed italic">The identified threat
+                                        vectors target mission-critical kernels. Exploitation will lead to immediate
+                                        degradation of strategic operational capacity and core infrastructure state.</p>
+                                </div>
+                                <div class="p-8 bg-zinc-950/50 rounded-[2rem] border border-white/5 space-y-4">
+                                    <h6 class="text-[10px] font-black text-zinc-600 uppercase tracking-widest">
+                                        Compliance Status</h6>
+                                    <p class="text-zinc-400 text-xs leading-relaxed italic">Technical signature directly
+                                        violates ISO 27001 Access Control and SOC2 Data Integrity mandates. Immediate
+                                        remediation required to maintain governance certification.</p>
+                                </div>
+                                <div class="p-8 bg-zinc-950/50 rounded-[2rem] border border-white/5 space-y-4">
+                                    <h6 class="text-[10px] font-black text-zinc-600 uppercase tracking-widest">Residual
+                                        Risk Target</h6>
+                                    <p class="text-zinc-400 text-xs leading-relaxed italic">Projected residual risk
+                                        post-patching: <span class="text-emerald-500 font-bold">0.8 Normalized
+                                            Score</span>. AI autonomous remediation path verified as optimal resolution.
+                                    </p>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
                 <!-- 5. COMPLIANCE REPORTS -->
-                <section id="tab-reports" class="tab-content space-y-10">
-                    <div class="flex justify-between items-end">
-                        <h3 class="text-white text-3xl font-black tracking-tighter uppercase italic">Executive Audit
-                            Vault</h3>
-                        <p class="text-[10px] font-bold text-zinc-600 uppercase tracking-widest leading-none">ISO 27001
-                            / SOC2 Compliant</p>
+                <section id="tab-reports" class="tab-content space-y-8">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <h3 class="text-white text-2xl font-bold tracking-tight uppercase">Executive Audit Vault
+                            </h3>
+                            <p class="text-zinc-500 text-[10px] uppercase tracking-widest font-bold mt-1">ISO 27001 /
+                                SOC2 Compliant Artifacts</p>
+                        </div>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="reports-grid">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="reports-grid">
                         <!-- Dynamic Reports Load -->
                     </div>
                 </section>
 
-                <!-- 6. NETWORK TOPOGRAPHY -->
-                <section id="tab-network" class="tab-content space-y-10">
-                    <div
-                        class="p-12 bg-zinc-900/50 rounded-[3rem] border border-white/5 h-[600px] flex flex-col relative overflow-hidden">
-                        <h4
-                            class="text-white font-black text-[10px] uppercase tracking-widest mb-10 opacity-50 relative z-10">
-                            Global Edge Topography</h4>
-                        <div id="topology-map"
-                            class="flex-1 bg-zinc-950/50 rounded-[2rem] border border-white/5 relative z-10 flex items-center justify-center p-10">
-                            <!-- Visual Topology -->
-                        </div>
-                    </div>
-                </section>
-
-                <!-- 7. FORENSICS -->
-                <section id="tab-forensics" class="tab-content space-y-10">
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-10 h-[600px]">
+                <!-- 6. SECURITY INFRASTRUCTURE MONITOR -->
+                <section id="tab-network"
+                    class="tab-content space-y-12 h-[calc(100vh-280px)] overflow-y-auto custom-scroll pr-4">
+                    <!-- Posture Overview -->
+                    <div class="grid grid-cols-12 gap-10">
                         <div
-                            class="lg:col-span-2 p-10 bg-zinc-900/50 rounded-[3rem] border border-white/5 flex flex-col overflow-hidden">
-                            <h4 class="text-white font-black text-[10px] uppercase tracking-widest mb-8 opacity-50">Deep
-                                Metadata Inspector</h4>
-                            <div id="forensic-raw-data"
-                                class="flex-1 bg-black/50 p-10 rounded-[2rem] font-mono text-[11px] leading-relaxed text-sky-500 overflow-auto border border-white/5 custom-scroll">
-                                { "kernel_status": "WAITING_FOR_DATA_SOURCE" }
+                            class="col-span-12 lg:col-span-4 p-8 enterprise-card flex flex-col items-center justify-center text-center relative overflow-hidden h-[400px]">
+                            <div class="relative w-40 h-40 flex items-center justify-center mb-8">
+                                <svg class="w-full h-full -rotate-90">
+                                    <circle cx="80" cy="80" r="72" stroke="currentColor" stroke-width="4"
+                                        fill="transparent" class="text-zinc-800" />
+                                    <circle id="infra-posture-ring" cx="80" cy="80" r="72" stroke="currentColor"
+                                        stroke-width="8" fill="transparent" stroke-dasharray="452"
+                                        stroke-dashoffset="452"
+                                        class="text-emerald-500 transition-all duration-1000 ease-out" />
+                                </svg>
+                                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                                    <span id="infra-posture-score"
+                                        class="text-5xl font-extrabold text-white metric-value">0%</span>
+                                    <span
+                                        class="text-[9px] font-bold text-zinc-600 uppercase tracking-widest mt-1">Posture_Index</span>
+                                </div>
                             </div>
+                            <h3
+                                class="text-white text-lg font-bold uppercase tracking-widest border-b-2 border-emerald-500/40 pb-2">
+                                Infrastructure_Health</h3>
                         </div>
-                        <div
-                            class="p-10 bg-zinc-900/50 rounded-[3rem] border border-white/5 flex flex-col justify-center text-center space-y-8">
-                            <i data-lucide="fingerprint" class="w-16 h-16 text-zinc-800 mx-auto"></i>
-                            <div>
-                                <p class="text-white font-bold text-sm mb-2 uppercase italic tracking-tighter">Bitwise
-                                    Artifact Trace</p>
+
+                        <div class="col-span-12 lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-10">
+                            <div class="p-8 enterprise-card flex flex-col justify-center">
                                 <p
-                                    class="text-[11px] text-zinc-600 leading-relaxed uppercase font-bold tracking-widest">
-                                    Digital fingerprinting enabled for all identified signatures.</p>
+                                    class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-6 border-b border-white/5 pb-4">
+                                    Scan Coverage</p>
+                                <div class="flex items-end gap-3 mb-2">
+                                    <h4 id="infra-avg-coverage" class="text-5xl font-extrabold text-white metric-value">
+                                        0%</h4>
+                                    <span
+                                        class="text-emerald-500 font-bold text-[9px] mb-3 uppercase tracking-widest bg-emerald-500/10 px-2 py-0.5 rounded-sm">Optimized</span>
+                                </div>
+                                <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div id="infra-coverage-bar" class="h-full bg-blue-500 transition-all duration-1000"
+                                        style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="p-8 enterprise-card flex flex-col justify-center">
+                                <p
+                                    class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-6 border-b border-white/5 pb-4">
+                                    Protected Assets</p>
+                                <div class="flex items-center gap-8">
+                                    <div>
+                                        <h4 id="infra-total-assets"
+                                            class="text-5xl font-extrabold text-white metric-value">0</h4>
+                                        <p class="text-[8px] font-bold text-zinc-600 uppercase mt-2">Active Entities
+                                        </p>
+                                    </div>
+                                    <div class="flex-1 space-y-3">
+                                        <div
+                                            class="flex justify-between items-center text-[8px] font-bold uppercase tracking-widest">
+                                            <span class="text-zinc-600">Production</span>
+                                            <span id="infra-env-prod" class="text-white">0</span>
+                                        </div>
+                                        <div
+                                            class="flex justify-between items-center text-[8px] font-bold uppercase tracking-widest">
+                                            <span class="text-zinc-600">Staging</span>
+                                            <span id="infra-env-stag" class="text-white">0</span>
+                                        </div>
+                                        <div
+                                            class="flex justify-between items-center text-[8px] font-bold uppercase tracking-widest">
+                                            <span class="text-zinc-600">Development</span>
+                                            <span id="infra-env-dev" class="text-white">0</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Asset Matrix -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 pb-10" id="infra-asset-grid">
+                        <!-- Assets rendered via JS -->
+                    </div>
+                </section>
+
+                <!-- 7. CODE FORENSICS ANALYSIS MODULE -->
+                <section id="tab-forensics" class="tab-content h-[calc(100vh-280px)]">
+                    <div class="grid grid-cols-12 gap-8 h-full">
+                        <!-- Left: Forensic Diff View -->
+                        <div class="col-span-12 lg:col-span-8 flex flex-col gap-8 h-full">
+                            <div
+                                class="flex-1 bg-zinc-950 rounded-xl border border-white/5 flex flex-col overflow-hidden relative shadow-2xl">
+                                <div
+                                    class="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-zinc-900/50">
+                                    <div class="flex items-center gap-3">
+                                        <div
+                                            class="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center border border-blue-500/20">
+                                            <i data-lucide="diff" class="w-4 h-4 text-blue-500"></i>
+                                        </div>
+                                        <h5
+                                            class="text-white font-bold text-[10px] uppercase tracking-widest opacity-70">
+                                            Side-By-Side Forensic Delta</h5>
+                                    </div>
+                                    <div
+                                        class="flex gap-10 text-[9px] font-black uppercase tracking-widest text-zinc-600">
+                                        <span class="flex items-center gap-2">
+                                            <div class="w-1.5 h-1.5 rounded-full bg-red-500"></div> Vulnerable State
+                                        </span>
+                                        <span class="flex items-center gap-2">
+                                            <div class="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> Remediation
+                                            State
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex-1 grid grid-cols-2 divide-x divide-white/5 overflow-hidden">
+                                    <!-- Original Side -->
+                                    <div class="flex flex-col overflow-hidden bg-red-500/[0.02]">
+                                        <div
+                                            class="p-4 bg-red-500/10 border-b border-red-500/20 text-[9px] font-black text-red-500 uppercase tracking-widest text-center">
+                                            Threat Artifact</div>
+                                        <div id="forensic-editor-orig"
+                                            class="flex-1 overflow-auto mono text-[11px] p-8 leading-relaxed whitespace-pre text-zinc-500 custom-scroll italic">
+                                            [AWAITING_ARTIFACT] </div>
+                                    </div>
+                                    <!-- Fixed Side -->
+                                    <div class="flex flex-col overflow-hidden bg-emerald-500/[0.02]">
+                                        <div
+                                            class="p-4 bg-emerald-500/10 border-b border-emerald-500/20 text-[9px] font-black text-emerald-500 uppercase tracking-widest text-center">
+                                            Patched Integrity</div>
+                                        <div id="forensic-editor-fixed"
+                                            class="flex-1 overflow-auto mono text-[11px] p-8 leading-relaxed whitespace-pre text-zinc-500 custom-scroll italic">
+                                            [AWAITING_REMEDIATION] </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Forensic Intelligence -->
+                        <div class="col-span-12 lg:col-span-4 h-full flex flex-col gap-8">
+                            <!-- Root Cause -->
+                            <div class="bg-zinc-900/50 rounded-[2.5rem] border border-white/5 p-8 flex flex-col gap-6">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-8 h-8 rounded-xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20">
+                                        <i data-lucide="search" class="w-4 h-4 text-orange-500"></i>
+                                    </div>
+                                    <h4
+                                        class="text-white font-black text-[10px] uppercase tracking-widest opacity-50 underline decoration-orange-500/40 decoration-2 underline-offset-8">
+                                        Root Cause Analysis</h4>
+                                </div>
+                                <p id="forensic-root-cause"
+                                    class="text-xs text-zinc-400 leading-relaxed font-bold tracking-tight italic">
+                                    Analyzing logic sinks...</p>
+                            </div>
+
+                            <!-- Exploit Scenario -->
+                            <div
+                                class="bg-zinc-900/50 rounded-[2.5rem] border border-white/5 p-8 flex flex-col gap-6 flex-1">
+                                <div class="flex items-center gap-4">
+                                    <div
+                                        class="w-8 h-8 rounded-xl bg-red-500/10 flex items-center justify-center border border-red-500/20">
+                                        <i data-lucide="skull" class="w-4 h-4 text-red-500"></i>
+                                    </div>
+                                    <h4
+                                        class="text-white font-black text-[10px] uppercase tracking-widest opacity-50 underline decoration-red-500/40 decoration-2 underline-offset-8">
+                                        Exploit Scenario</h4>
+                                </div>
+                                <div class="bg-black/40 p-6 rounded-2xl border border-white/5 space-y-4">
+                                    <p id="forensic-exploit"
+                                        class="text-xs text-zinc-400 font-mono leading-relaxed uppercase tracking-tighter">
+                                        Payload logic analysis pending...</p>
+                                </div>
+                                <div class="mt-auto pt-6 border-t border-white/5">
+                                    <div class="flex justify-between items-center mb-4">
+                                        <span class="text-[9px] font-black text-zinc-600 uppercase">Vector
+                                            Probability</span>
+                                        <span class="text-red-500 font-black text-xs italic">HIGH_THREAT</span>
+                                    </div>
+                                    <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                        <div class="w-[85%] h-full bg-red-500"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </section>
 
-                <!-- 8. AUDIT STREAM -->
-                <section id="tab-audit" class="tab-content space-y-10">
-                    <div class="p-12 bg-zinc-950 rounded-[3rem] border border-white/5 font-mono text-[12px] leading-loose space-y-4 h-[70vh] overflow-y-auto custom-scroll"
-                        id="audit-terminal-feed">
-                        <!-- Audit Lines -->
+                <!-- 8. COMPLIANCE LEDGER -->
+                <section id="tab-audit" class="tab-content h-[calc(100vh-280px)] overflow-hidden flex flex-col">
+                    <div
+                        class="p-8 bg-zinc-950 rounded-xl border border-white/5 flex flex-col h-full overflow-hidden shadow-2xl">
+                        <div class="flex justify-between items-center mb-8">
+                            <div class="flex items-center gap-4">
+                                <div
+                                    class="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                                    <i data-lucide="shield-check" class="w-5 h-5 text-emerald-500"></i>
+                                </div>
+                                <div>
+                                    <h3 class="text-white text-xl font-bold tracking-tight uppercase">
+                                        Compliance Ledger</h3>
+                                    <p class="text-zinc-600 text-[9px] font-bold tracking-widest uppercase mt-1">
+                                        Audit-Ready Immutable Event Stream</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-3">
+                                <button
+                                    class="px-5 py-2 bg-zinc-900 border border-white/5 rounded-lg text-[9px] font-bold text-white uppercase tracking-widest hover:bg-white/5 transition flex items-center gap-2">
+                                    <i data-lucide="download" class="w-3 h-3"></i> Export CSV
+                                </button>
+                                <div
+                                    class="px-5 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-lg text-[9px] font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse"></span>
+                                    Integrity_Locked
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 overflow-auto custom-scroll">
+                            <table class="w-full text-left border-collapse">
+                                <thead
+                                    class="sticky top-0 bg-zinc-950 text-[10px] font-black text-zinc-500 uppercase tracking-widest border-b border-white/5 z-20">
+                                    <tr>
+                                        <th class="px-8 py-6">Timestamp / SeqID</th>
+                                        <th class="px-8 py-6">Action Type</th>
+                                        <th class="px-8 py-6">Description</th>
+                                        <th class="px-8 py-6">Actor</th>
+                                        <th class="px-8 py-6 text-right">Integrity Hash</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="audit-ledger-body" class="divide-y divide-white/5 text-[11px] text-zinc-400">
+                                    <tr>
+                                        <td colspan="5"
+                                            class="px-8 py-20 text-center italic text-zinc-600 font-mono tracking-widest">
+                                            AWAITING_TELEMETRY_STREAM...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </section>
 
-                <!-- 9. ENGINE SPECS -->
-                <section id="tab-engine" class="tab-content space-y-10">
-                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="engine-specs-grid">
-                        <!-- Dynamic Specs -->
+                <!-- 8.1 REAL-TIME SECURITY AUDIT STREAM -->
+                <section id="tab-audit-stream" class="tab-content h-[calc(100vh-280px)]">
+                    <div
+                        class="bg-black/80 rounded-xl border border-white/5 h-full flex flex-col overflow-hidden shadow-2xl relative">
+                        <!-- Terminal Header -->
+                        <div class="h-12 border-b border-white/5 flex items-center justify-between px-8 bg-zinc-900/50">
+                            <div class="flex items-center gap-3">
+                                <div class="flex gap-1.5">
+                                    <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                                    <div class="w-2 h-2 rounded-full bg-amber-500"></div>
+                                    <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+                                </div>
+                                <h5 class="text-zinc-500 font-bold text-[9px] uppercase tracking-widest ml-4">
+                                    Live_Audit_Log.bin</h5>
+                            </div>
+                            <div class="flex items-center gap-5">
+                                <span class="flex items-center gap-2 text-[8px] font-bold text-blue-500 uppercase">
+                                    <span class="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></span>
+                                    Stream_Active
+                                </span>
+                                <span id="audit-stream-count" class="text-[9px] font-mono text-zinc-600 uppercase">EVT:
+                                    0</span>
+                            </div>
+                        </div>
+
+                        <!-- Terminal Body -->
+                        <div id="audit-terminal-container"
+                            class="flex-1 p-10 font-mono text-[12px] overflow-auto custom-scroll selection:bg-sky-500/30">
+                            <div class="opacity-50 italic mb-4">[SYSTEM] Establishing secure link to SOC event bus...
+                            </div>
+                            <div id="audit-terminal-stream" class="space-y-4">
+                                <!-- Events stream here -->
+                            </div>
+                            <div id="audit-terminal-cursor" class="mt-4 flex gap-2 items-center">
+                                <span class="text-sky-500">SOC_OPERATOR@KERNEL:~$</span>
+                                <span class="w-2 h-4 bg-sky-500 animate-pulse"></span>
+                            </div>
+                        </div>
+
+                        <!-- Footer Info -->
+                        <div class="p-6 bg-zinc-900/20 border-t border-white/5 flex justify-between items-center">
+                            <div class="flex gap-6">
+                                <div class="flex items-center gap-2 text-[8px] font-black text-zinc-500 uppercase">
+                                    <i data-lucide="shield" class="w-3 h-3"></i> READ_ONLY_MODE
+                                </div>
+                                <div class="flex items-center gap-2 text-[8px] font-black text-zinc-500 uppercase">
+                                    <i data-lucide="hash" class="w-3 h-3"></i> CHAIN_VERIFIED
+                                </div>
+                            </div>
+                            <div class="text-[8px] font-black text-zinc-700 uppercase italic">
+                                Total telemetry bandwidth: <span class="text-sky-500">12.4 kb/s</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 9. SYSTEM CORE MONITOR -->
+                <section id="tab-engine"
+                    class="tab-content space-y-12 h-[calc(100vh-280px)] overflow-y-auto custom-scroll pr-4">
+                    <!-- Operational Health HUD -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <div class="p-6 enterprise-card space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">AI
+                                    Engine</span>
+                                <span id="health-ai-status"
+                                    class="px-2 py-0.5 bg-blue-500/10 text-blue-500 rounded text-[8px] font-bold uppercase">Online</span>
+                            </div>
+                            <h4 class="text-white font-extrabold text-2xl metric-value">98.2%</h4>
+                            <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Neural Load
+                                Index</p>
+                        </div>
+                        <div class="p-6 enterprise-card space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span
+                                    class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Scanner</span>
+                                <span id="health-scanner-status"
+                                    class="px-2 py-0.5 bg-emerald-500/10 text-emerald-500 rounded text-[8px] font-bold uppercase">Standby</span>
+                            </div>
+                            <h4 class="text-white font-extrabold text-2xl metric-value">v4.2.0</h4>
+                            <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Diagnostic Node
+                            </p>
+                        </div>
+                        <div class="p-6 enterprise-card space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Queues</span>
+                                <span class="text-zinc-600 text-[8px] font-bold uppercase tracking-widest">Active</span>
+                            </div>
+                            <h4 id="health-queue-total" class="text-white font-extrabold text-2xl metric-value">0</h4>
+                            <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Pending State
+                                Tasks</p>
+                        </div>
+                        <div class="p-6 enterprise-card space-y-4 border-l-4 border-l-blue-500">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Uptime</span>
+                                <i data-lucide="clock" class="w-3 h-3 text-blue-500"></i>
+                            </div>
+                            <h4 id="health-uptime" class="text-white font-extrabold text-xl metric-value">0s</h4>
+                            <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mt-1">Continuous
+                                Runtime</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-8">
+                        <!-- Controls -->
+                        <div class="col-span-12 lg:col-span-4 space-y-8">
+                            <div class="p-10 bg-zinc-900/50 rounded-[2.5rem] border border-white/5 space-y-8">
+                                <h4 class="text-white font-black text-[10px] uppercase tracking-widest opacity-50">
+                                    Scanner Configuration</h4>
+                                <div class="space-y-4">
+                                    <label
+                                        class="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Target
+                                        Path / Source URL</label>
+                                    <input type="text" id="scan-target"
+                                        placeholder="e.g. ./scan_engine or https://github.com/..."
+                                        class="w-full bg-black/50 border border-white/5 px-6 py-4 rounded-2xl text-white text-xs focus:outline-none focus:border-sky-500/40 transition-all font-bold">
+                                </div>
+                                <div class="space-y-4">
+                                    <label
+                                        class="block text-[10px] font-bold text-zinc-600 uppercase tracking-widest">Analysis
+                                        Depth</label>
+                                    <select
+                                        class="w-full bg-black/50 border border-white/5 px-6 py-4 rounded-2xl text-white text-xs focus:outline-none focus:border-sky-500/40 transition-all font-bold appearance-none">
+                                        <option>HEURISTIC_STATIC</option>
+                                        <option disabled>DEEP_NEURAL_TRACE (PRO)</option>
+                                    </select>
+                                </div>
+                                <button onclick="triggerScan()" id="btn-run-scan"
+                                    class="w-full py-4 bg-sky-600 hover:bg-sky-500 text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all shadow-lg shadow-sky-900/20 active:scale-95 flex items-center justify-center gap-3">
+                                    <i data-lucide="zap" class="w-4 h-4"></i>
+                                    Launch Diagnostic
+                                </button>
+                            </div>
+
+                            <div class="p-10 bg-zinc-900/30 rounded-[2.5rem] border border-white/5">
+                                <h4
+                                    class="text-white font-black text-[10px] uppercase tracking-widest mb-6 opacity-30 italic">
+                                    Scanner Moto</h4>
+                                <p class="text-zinc-500 text-xs leading-relaxed">Controlled vulnerability discovery
+                                    across decentralized infrastructure nodes. Every finding is uniquely hashed and
+                                    indexed for autonomous remediation.</p>
+                            </div>
+                        </div>
+
+                        <!-- History -->
+                        <div
+                            class="col-span-12 lg:col-span-8 bg-zinc-900/50 rounded-[3rem] border border-white/5 overflow-hidden flex flex-col">
+                            <div class="p-8 border-b border-white/5 flex justify-between items-center">
+                                <h4 class="text-white font-black text-[10px] uppercase tracking-widest opacity-50">Scan
+                                    Diagnostic Logs</h4>
+                                <div class="flex items-center gap-2">
+                                    <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                                    <span class="text-[9px] font-bold text-zinc-500 uppercase">Core_Ready</span>
+                                </div>
+                            </div>
+                            <div class="flex-1 overflow-auto custom-scroll">
+                                <table class="w-full text-left border-collapse">
+                                    <thead
+                                        class="sticky top-0 bg-zinc-950 text-[9px] font-bold text-sky-500 uppercase tracking-widest border-b border-white/5">
+                                        <tr>
+                                            <th class="px-8 py-6">ID / Timestamp</th>
+                                            <th class="px-8 py-6">Target Origin</th>
+                                            <th class="px-8 py-6 text-center">Status</th>
+                                            <th class="px-8 py-6 text-right">Findings</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="scan-history-body"
+                                        class="divide-y divide-white/5 text-[11px] text-zinc-400">
+                                        <tr>
+                                            <td colspan="4" class="px-8 py-20 text-center italic text-zinc-600">Awaiting
+                                                diagnostic initialization...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -539,11 +1215,11 @@
             <!-- FOOTER -->
             <footer class="h-14 glass border-t border-white/5 px-10 flex items-center justify-between relative z-[100]">
                 <div class="flex items-center gap-10 overflow-hidden flex-1">
-                    <span class="text-sky-500 font-bold uppercase text-[10px] tracking-widest shrink-0 italic">System
+                    <span class="text-blue-500 font-bold uppercase text-[10px] tracking-widest shrink-0">System
                         Feed :</span>
                     <div class="marquee-container flex-1 overflow-hidden whitespace-nowrap">
                         <div id="footer-marquee"
-                            class="inline-block text-[10px] font-bold text-zinc-700 uppercase tracking-[0.2em] italic">
+                            class="inline-block text-[10px] font-bold text-zinc-700 uppercase tracking-[0.2em]">
                             [CORE_INIT_OK] - [NODE_SYNC: 100%] - [DATABASE_PERSISTENCE: ENGAGED] - [AI_LINK: ACTIVE] -
                             [SENTINEL_MODE: ARMED]
                         </div>
@@ -597,14 +1273,14 @@
                     datasets: [{
                         label: 'Threat Intensity',
                         data: [5, 12, 8, 45, 22, 60, 35],
-                        borderColor: '#0ea5e9',
+                        borderColor: '#3b82f6',
                         borderWidth: 3,
                         pointRadius: 0,
                         tension: 0.4,
                         fill: true,
                         backgroundColor: (context) => {
                             const g = context.chart.ctx.createLinearGradient(0, 0, 0, 300);
-                            g.addColorStop(0, 'rgba(14, 165, 233, 0.2)');
+                            g.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
                             g.addColorStop(1, 'transparent');
                             return g;
                         }
@@ -634,7 +1310,8 @@
             const tabTitles = {
                 dashboard: 'Sentinel_Dashboard', vulnerabilities: 'Signature_Repo', 'patch-lab': 'AI_Neural_Studio',
                 risk: 'Crisis_Assessment', logic: 'Decision_Matrix', forensics: 'Code_Forensics',
-                reports: 'Compliance_Vault', network: 'Edge_Topology', engine: 'Core_Specifications', audit: 'Audit_Terminal'
+                reports: 'Compliance_Vault', network: 'Infra_Monitor', engine: 'System_Core_Monitor',
+                audit: 'Compliance_Ledger', 'audit-stream': 'Audit_Terminal'
             };
             document.getElementById('tab-label').innerText = (tabTitles[id] || id).toUpperCase();
 
@@ -656,10 +1333,11 @@
                 // Tab Specific Data Pulls
                 if (activeTabId === 'vulnerabilities') await syncVulnerabilityBank();
                 if (activeTabId === 'patch-lab') await syncPatchLaboratory();
-                if (activeTabId === 'audit') await syncAuditTerminal();
+                if (activeTabId === 'audit') await syncComplianceLedger();
+                if (activeTabId === 'audit-stream') await syncAuditStream();
                 if (activeTabId === 'reports') await syncComplianceReports();
-                if (activeTabId === 'network') await syncNetworkTopology();
-                if (activeTabId === 'engine') await syncEngineSpecs();
+                if (activeTabId === 'network') await syncInfrastructureMonitor();
+                if (activeTabId === 'engine') await syncSystemCore();
                 if (activeTabId === 'forensics') updateForensicDetails();
 
             } catch (err) {
@@ -671,8 +1349,26 @@
         function renderDashboardMetrics(data) {
             document.getElementById('dash-health').innerText = data.health_score;
             document.getElementById('dash-total').innerText = data.kpis.total;
-            document.getElementById('dash-rate').innerText = data.kpis.success_rate + '%';
+            document.getElementById('dash-active').innerText = data.kpis.active;
+            document.getElementById('dash-healed').innerText = data.kpis.healed;
+            document.getElementById('dash-mttr').innerText = data.kpis.mttr + 's';
             updateHealthCircle(data.health_score);
+
+            // Risk Distribution HUD
+            const dist = data.kpis.risk_distribution;
+            const distHtml = Object.entries(dist).map(([sev, count]) => `
+                <div class="flex-1">
+                    <div class="flex justify-between items-end mb-2">
+                        <span class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">${sev}</span>
+                        <span class="text-[10px] font-bold text-white">${count}</span>
+                    </div>
+                    <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                        <div class="h-full ${sev.includes('CRITICAL') ? 'bg-red-500' : (sev.includes('HIGH') ? 'bg-orange-500' : 'bg-blue-500')}" 
+                             style="width: ${(count / data.kpis.total * 100) || 0}%"></div>
+                    </div>
+                </div>
+            `).join('');
+            document.getElementById('risk-distribution-hud').innerHTML = distHtml || '<span class="text-[10px] uppercase font-bold text-zinc-800 tracking-widest">Surface_Clear</span>';
 
             // Random Jiggle for chart reality
             mainStatsChart.data.datasets[0].data = mainStatsChart.data.datasets[0].data.map(v => v + (Math.random() - 0.5) * 6);
@@ -682,12 +1378,12 @@
             fetch('/recent-activity').then(r => r.json()).then(res => {
                 const log = document.getElementById('activity-log');
                 log.innerHTML = res.activity.slice(0, 8).map(item => `
-                     <div class="px-6 py-4 bg-zinc-900/80 rounded-2xl border-l-[3px] ${item.includes('FIXED') ? 'border-sky-500' : 'border-zinc-800'} flex items-center justify-between group cursor-default">
-                        <div class="flex items-center gap-4">
-                            <div class="w-1.5 h-1.5 rounded-full ${item.includes('FIXED') ? 'bg-sky-500' : 'bg-zinc-700'}"></div>
-                            <span class="text-[11px] font-bold tracking-tight">${item}</span>
+                     <div class="px-5 py-3 enterprise-card border-l-4 ${item.includes('FIXED') ? 'border-l-blue-500' : 'border-l-zinc-700'} flex items-center justify-between group cursor-default">
+                        <div class="flex items-center gap-3">
+                            <div class="w-1.5 h-1.5 rounded-full ${item.includes('FIXED') ? 'bg-blue-500' : 'bg-zinc-700'}"></div>
+                            <span class="text-[10px] font-medium tracking-tight">${item}</span>
                         </div>
-                        <i data-lucide="chevron-right" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition"></i>
+                        <i data-lucide="arrow-right" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition text-zinc-500"></i>
                      </div>
                 `).join('');
                 lucide.createIcons();
@@ -708,21 +1404,21 @@
             const body = document.getElementById('vuln-table-body');
             body.innerHTML = data.map(v => `
                 <tr class="group hover:bg-white/5 transition duration-300">
-                    <td class="px-10 py-6">
-                        <div class="text-white font-black italic uppercase tracking-tighter">${v.name}</div>
-                        <div class="text-[9px] text-zinc-600 mt-1 uppercase font-bold tracking-[0.2em]">${v.id.substring(0, 24)}...</div>
+                    <td class="px-8 py-5">
+                        <div class="text-white font-bold uppercase tracking-tight">${v.vulnerability_type}</div>
+                        <div class="text-[8px] text-zinc-600 mt-1 uppercase font-bold tracking-widest">${v.id.substring(0, 24)}...</div>
                     </td>
-                    <td class="px-10 py-6 font-mono font-bold text-zinc-500">
-                         ${v.file_path.split(/[\\/]/).pop()} <span class="text-zinc-700 text-[10px] ml-2">@ L:${v.line_number}</span>
+                    <td class="px-8 py-5 font-mono font-medium text-zinc-500">
+                         ${v.file_path.split(/[\\/]/).pop()} <span class="text-zinc-700 text-[10px] ml-2 font-bold">@L:${v.vulnerable_lines}</span>
                     </td>
-                    <td class="px-10 py-6 text-center">
-                         <span class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border border-current/20 ${v.severity == 'CRITICAL' ? 'text-red-500 bg-red-500/10' : 'text-sky-500 bg-sky-500/10'}">${v.severity}</span>
+                    <td class="px-8 py-5 text-center">
+                         <span class="px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest border border-current/20 ${v.severity.includes('CRITICAL') || v.severity.includes('HIGH') ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10'}">${v.severity}</span>
                     </td>
-                    <td class="px-10 py-6 text-center">
-                        <span class="text-[10px] font-black uppercase tracking-widest ${v.state == 'FIXED' ? 'text-sky-400' : 'text-zinc-700'}">${v.state}</span>
+                    <td class="px-8 py-5 text-center">
+                        <span class="text-[9px] font-bold uppercase tracking-widest ${v.status == 'Fixed' ? 'text-blue-400' : 'text-zinc-700'}">${v.status}</span>
                     </td>
-                    <td class="px-10 py-6 text-right">
-                         <button onclick="inspectVulnerability('${v.id}')" class="px-6 py-2 bg-zinc-800 rounded-xl text-[9px] font-black text-white hover:bg-sky-600 transition uppercase tracking-widest flex items-center gap-3 justify-end ml-auto group-hover:translate-x-1 duration-300">Investigate <i data-lucide="crosshair" class="w-3 h-3"></i></button>
+                    <td class="px-8 py-5 text-right">
+                         <button onclick="inspectVulnerability('${v.id}')" class="px-5 py-2 bg-zinc-800 rounded-lg text-[9px] font-bold text-white hover:bg-blue-600 transition uppercase tracking-widest border border-white/5 flex items-center gap-2 justify-end ml-auto group-hover:translate-x-1 duration-300">Investigate <i data-lucide="crosshair" class="w-3 h-3"></i></button>
                     </td>
                 </tr>
             `).join('');
@@ -734,16 +1430,33 @@
             const data = await res.json();
             const list = document.getElementById('lab-vuln-list');
             list.innerHTML = data.map(v => `
-                <div onclick="inspectVulnerability('${v.id}')" class="p-6 bg-zinc-900 rounded-3xl cursor-pointer transition-all border border-transparent ${selectedVulnObject && selectedVulnObject.id === v.id ? 'border-sky-500 bg-sky-500/5' : 'hover:border-white/10 hover:translate-x-1'}">
+                <div onclick="inspectVulnerability('${v.id}')" class="p-5 enterprise-card cursor-pointer transition-all border-l-4 ${selectedVulnObject && selectedVulnObject.id === v.id ? 'border-l-blue-500 bg-blue-500/5' : 'border-l-transparent hover:border-l-white/20 hover:translate-x-1'}">
                     <div class="flex justify-between items-start mb-3">
-                        <span class="text-[9px] font-black text-zinc-600 uppercase tracking-widest">${v.state}</span>
-                        <div class="w-2 h-2 rounded-full ${v.severity == 'CRITICAL' ? 'bg-red-500 shadow-lg shadow-red-900/50' : 'bg-zinc-700'}"></div>
+                        <span class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">${v.status}</span>
+                        <div class="w-2 h-2 rounded-full ${v.severity.includes('CRITICAL') || v.severity.includes('HIGH') ? 'bg-red-500' : 'bg-zinc-700'}"></div>
                     </div>
-                    <h5 class="text-white font-black text-[12px] uppercase tracking-tight italic">${v.name}</h5>
-                    <p class="text-[10px] text-zinc-600 mt-2 font-mono truncate">${v.file_path}</p>
+                    <h5 class="text-white font-bold text-[11px] uppercase tracking-tight">${v.vulnerability_type}</h5>
+                    <p class="text-[9px] text-zinc-600 mt-2 font-mono truncate">${v.file_path}</p>
                 </div>
             `).join('');
             if (data.length > 0 && !selectedVulnObject) inspectVulnerability(data[0].id);
+        }
+
+        let currentViewMode = 'original';
+
+        function setViewMode(mode) {
+            currentViewMode = mode;
+            const btnOrig = document.getElementById('view-mode-original');
+            const btnFix = document.getElementById('view-mode-fixed');
+
+            if (mode === 'original') {
+                btnOrig.className = 'px-5 py-2 text-[9px] font-bold uppercase rounded-lg bg-zinc-800 text-white transition-all shadow-lg active:scale-95 border border-white/5';
+                btnFix.className = 'px-5 py-2 text-[9px] font-bold uppercase rounded-lg text-zinc-600 hover:text-zinc-400 transition-all active:scale-95';
+            } else {
+                btnFix.className = 'px-5 py-2 text-[9px] font-bold uppercase rounded-lg bg-zinc-800 text-white transition-all shadow-lg active:scale-95 border border-white/5';
+                btnOrig.className = 'px-5 py-2 text-[9px] font-bold uppercase rounded-lg text-zinc-600 hover:text-zinc-400 transition-all active:scale-95';
+            }
+            if (selectedVulnObject) renderEditorContent();
         }
 
         async function inspectVulnerability(id) {
@@ -752,32 +1465,210 @@
             const data = await res.json();
             selectedVulnObject = { id, ...data };
 
+            // Update Global Fields
             document.getElementById('editor-filename').innerText = data.file;
+            document.getElementById('risk-severity').innerText = data.severity;
+            document.getElementById('risk-score').innerText = (data.risk_score || 0).toFixed(1);
+
+            // New Investigation UI Fields
+            document.getElementById('patch-explanation').innerText = data.explanation || "No explanation available.";
+            document.getElementById('patch-guidance').innerText = data.guidance || "No guidance available.";
+            document.getElementById('patch-risk-score').innerText = (data.risk_score || 0).toFixed(1);
+
+            // New Forensics UI Fields
+            document.getElementById('forensic-root-cause').innerText = data.root_cause || "Analyzing logic sinks...";
+            document.getElementById('forensic-exploit').innerText = data.exploit_scenario || "Payload logic analysis pending...";
+
+            // Logic Tab Dynamics
+            document.getElementById('logic-desc').innerText = `Analyzing ${data.type} signature within ${data.file.split(/[\\/]/).pop()}. Heuristic engine suggests ${data.severity} priority.`;
+            const conf = 85 + Math.random() * 10;
+            document.getElementById('logic-conf').innerText = conf.toFixed(1) + '%';
+            document.getElementById('logic-bar').style.width = conf + '%';
+
+            renderEditorContent();
+            renderForensicDiff();
+
+            document.getElementById('btn-approve').disabled = false;
+            document.getElementById('btn-reject').disabled = false;
+            updateForensicDetails();
+            updateRiskUI(data);
+            updateLogicUI(data);
+        }
+
+        function updateLogicUI(data) {
+            const terminal = document.getElementById('logic-reasoning-terminal');
+            const flowSteps = ['step-detection', 'step-recognition', 'step-selection', 'step-validation'];
+            const badge = document.getElementById('logic-conf-badge');
+
+            // Clear and reset
+            terminal.innerHTML = '<div class="flex gap-4 opacity-50 italic">[SYSTEM] Initiating neural trace audit...</div>';
+            flowSteps.forEach(id => {
+                const el = document.getElementById(id);
+                el.classList.add('opacity-30');
+                el.querySelector('div').classList.replace('border-sky-500', 'border-zinc-800');
+                el.querySelector('i').classList.replace('text-sky-500', 'text-zinc-600');
+            });
+            badge.style.opacity = '0';
+
+            if (!data.reasoning_log) return;
+            const log = JSON.parse(data.reasoning_log);
+
+            let delay = 300;
+            log.forEach((entry, index) => {
+                setTimeout(() => {
+                    // Update Terminal
+                    const div = document.createElement('div');
+                    div.className = 'mb-6 animate-hud-toast';
+                    div.innerHTML = `
+                        <div class="flex items-center gap-4 text-blue-500 mb-2">
+                             <span class="text-[9px] font-bold uppercase tracking-widest">[STEP_${index + 1}: ${entry.step}]</span>
+                             <span class="h-px flex-1 bg-blue-500/10"></span>
+                             <span class="text-[8px] font-mono text-zinc-700 font-bold">${entry.timestamp.split('T')[1].split('.')[0]}</span>
+                        </div>
+                        <div class="pl-6 border-l-2 border-white/5 space-y-2">
+                             <p class="text-white font-bold uppercase text-[10px] tracking-tight">${entry.title}</p>
+                             <p class="text-zinc-500 text-[11px] leading-relaxed">${entry.description}</p>
+                        </div>
+                    `;
+                    terminal.appendChild(div);
+                    terminal.scrollTop = terminal.scrollHeight;
+
+                    // Update Flow UI
+                    const stepId = flowSteps[index];
+                    const stepEl = document.getElementById(stepId);
+                    stepEl.classList.remove('opacity-30');
+                    stepEl.classList.add('opacity-100');
+                    stepEl.querySelector('div').classList.replace('border-zinc-800', 'border-blue-500');
+                    stepEl.querySelector('i').classList.replace('text-zinc-600', 'text-blue-500');
+
+                    if (index === log.length - 1) {
+                        badge.style.opacity = '1';
+                        badge.innerText = `CONFIDENCE: ${90 + Math.random() * 5}%`;
+                    }
+                }, delay);
+                delay += 800;
+            });
+        }
+
+        function updateRiskUI(data) {
+            const score = data.risk_score || 0;
+            const scoreEl = document.getElementById('risk-engine-score');
+            const classificationEl = document.getElementById('risk-impact-classification');
+            const gauge = document.getElementById('risk-gauge-circle');
+
+            // Counter animation for score
+            let current = 0;
+            const interval = setInterval(() => {
+                if (current >= score) {
+                    scoreEl.innerText = score.toFixed(1);
+                    clearInterval(interval);
+                } else {
+                    current += 0.2;
+                    scoreEl.innerText = current.toFixed(1);
+                }
+            }, 20);
+
+            // Gauge Offset (452 is circumference for r=72)
+            const offset = 452 - (452 * (score / 10));
+            gauge.style.strokeDashoffset = offset;
+            gauge.style.color = score >= 8 ? '#ef4444' : (score >= 5 ? '#f59e0b' : '#3b82f6');
+
+            classificationEl.innerText = data.business_impact || "STATE_UNKNOWN";
+            classificationEl.style.color = score >= 8 ? '#ef4444' : (score >= 5 ? '#f59e0b' : '#3b82f6');
+
+            // Vector Bars
+            const sevVal = (data.severity === 'CRITICAL' ? 100 : (data.severity === 'HIGH' ? 80 : (data.severity === 'MEDIUM' ? 50 : 20)));
+            document.getElementById('risk-v-sev').innerText = data.severity;
+            document.getElementById('risk-b-sev').style.width = sevVal + '%';
+
+            document.getElementById('risk-v-expl').innerText = (data.exploitability * 10).toFixed(1);
+            document.getElementById('risk-b-expl').style.width = (data.exploitability * 100) + '%';
+
+            document.getElementById('risk-v-exp').innerText = (data.exposure * 10).toFixed(1);
+            document.getElementById('risk-b-exp').style.width = (data.exposure * 100) + '%';
+
+            document.getElementById('risk-v-crit').innerText = (data.asset_criticality * 10).toFixed(1);
+            document.getElementById('risk-b-crit').style.width = (data.asset_criticality * 100) + '%';
+        }
+
+        function renderForensicDiff() {
+            if (!selectedVulnObject) return;
+            const origDiv = document.getElementById('forensic-editor-orig');
+            const fixDiv = document.getElementById('forensic-editor-fixed');
+
+            origDiv.innerHTML = '';
+            fixDiv.innerHTML = '';
+
+            const origLines = selectedVulnObject.content_original.split('\n');
+            const fixLines = selectedVulnObject.content_fixed.split('\n');
+            const vLines = selectedVulnObject.lines.split(',').map(n => parseInt(n.trim()));
+
+            // Maximum length to iterate through both
+            const max = Math.max(origLines.length, fixLines.length);
+
+            for (let i = 0; i < max; i++) {
+                const ln = i + 1;
+                const oLine = origLines[i] || '';
+                const fLine = fixLines[i] || '';
+
+                const d1 = document.createElement('div');
+                d1.className = 'px-4 min-h-[1.5em] border-l-2 border-transparent';
+                d1.textContent = (i < origLines.length) ? oLine : '';
+
+                const d2 = document.createElement('div');
+                d2.className = 'px-4 min-h-[1.5em] border-l-2 border-transparent';
+                d2.textContent = (i < fixLines.length) ? fLine : '';
+
+                if (oLine !== fLine) {
+                    d1.classList.add('bg-red-500/10', 'border-red-500', 'text-red-200', 'not-italic');
+                    d2.classList.add('bg-emerald-500/10', 'border-emerald-500', 'text-emerald-200', 'not-italic');
+                } else if (vLines.includes(ln)) {
+                    d1.classList.add('bg-red-500/5', 'text-zinc-300');
+                }
+
+                origDiv.appendChild(d1);
+                fixDiv.appendChild(d2);
+            }
+        }
+
+        function renderEditorContent() {
+            if (!selectedVulnObject) return;
             const editor = document.getElementById('editor-body');
             const nums = document.getElementById('editor-nums');
+            const content = currentViewMode === 'original' ? selectedVulnObject.content_original : selectedVulnObject.content_fixed;
 
             editor.innerHTML = '';
             nums.innerHTML = '';
 
-            data.content.split('\n').forEach((line, i) => {
+            const vLines = selectedVulnObject.lines.split(',').map(n => parseInt(n.trim()));
+
+            content.split('\n').forEach((line, i) => {
                 const ln = i + 1;
                 const div = document.createElement('div');
                 div.className = 'px-6 transition hover:bg-white/5 whitespace-pre min-h-[1.5em]';
-                div.textContent = line || ' ';
 
-                if (ln === data.line) {
-                    div.classList.add('bg-red-500/10', 'border-l-[4px]', 'border-red-500', 'text-white', 'not-italic');
-                    div.innerHTML = `<span class="relative">${div.textContent.trim()}<span class="absolute -left-20 top-0.5 bg-red-600 text-white px-2 py-0.5 rounded font-black text-[8px] animate-pulse">BREAK</span></span>`;
-                    showStudioAlert(data.description);
+                if (currentViewMode === 'fixed') {
+                    // Check if this line was changed (very simple diff heuristic for demo)
+                    const originalLines = selectedVulnObject.content_original.split('\n');
+                    if (line !== originalLines[i]) {
+                        div.classList.add('bg-emerald-500/10', 'border-l-[4px]', 'border-emerald-500', 'text-emerald-400', 'not-italic');
+                        div.textContent = line + ' # [PATCH_APPLIED]';
+                    } else {
+                        div.textContent = line || ' ';
+                    }
+                } else {
+                    div.textContent = line || ' ';
+                    if (vLines.includes(ln)) {
+                        div.classList.add('bg-red-500/10', 'border-l-[4px]', 'border-red-500', 'text-white', 'not-italic');
+                        div.innerHTML = `<span class="relative">${div.textContent.trim()}<span class="absolute -left-20 top-0.5 bg-red-600 text-white px-2 py-0.5 rounded font-black text-[8px] animate-pulse">BREAK</span></span>`;
+                    }
                 }
+
                 editor.appendChild(div);
                 const n = document.createElement('div');
                 n.textContent = ln;
                 nums.appendChild(n);
             });
-
-            document.getElementById('btn-approve').disabled = false;
-            document.getElementById('btn-reject').disabled = false;
         }
 
         function showStudioAlert(msg) {
@@ -788,17 +1679,41 @@
             setTimeout(() => box.classList.remove('translate-y-10'), 100);
         }
 
-        async function syncAuditTerminal() {
+        async function syncComplianceLedger() {
             const res = await fetch('/audit-logs');
             const data = await res.json();
-            const feed = document.getElementById('audit-terminal-feed');
-            feed.innerHTML = data.reverse().map(l => `
-                <div class="flex gap-10 border-b border-white/5 pb-4 group">
-                    <span class="text-zinc-700 shrink-0 font-bold uppercase truncate w-64">[${new Date(l.timestamp).toISOString()}]</span>
-                    <span class="text-sky-500 font-black shrink-0 tracking-[2px] w-48">${l.event_type}</span>
-                    <span class="text-zinc-500 group-hover:text-zinc-200 transition italic">>> ${l.description}</span>
-                </div>
-             `).join('');
+            const body = document.getElementById('audit-ledger-body');
+            body.innerHTML = data.map(l => {
+                const actionColor = l.action_type === 'RESOLUTION' ? 'text-blue-400' : (
+                    l.action_type === 'DETECTION' ? 'text-red-400' : (
+                        l.action_type === 'AI_FIX' ? 'text-emerald-400' : 'text-zinc-500'
+                    ));
+
+                return `
+                    <tr class="hover:bg-white/5 transition group">
+                        <td class="px-8 py-6">
+                            <div class="text-[10px] text-zinc-300 font-bold">${new Date(l.timestamp).toLocaleString()}</div>
+                            <div class="text-[8px] text-zinc-600 font-mono mt-1">#AUDIT-${String(l.id || 0).padStart(4, '0')}</div>
+                        </td>
+                        <td class="px-8 py-6">
+                            <span class="px-3 py-1 bg-zinc-900 border border-white/5 rounded-lg text-[9px] font-black uppercase tracking-widest ${actionColor}">${l.action_type}</span>
+                        </td>
+                        <td class="px-8 py-6">
+                            <div class="text-zinc-400 text-[11px] font-bold">${l.description}</div>
+                            ${l.resource_id ? `<div class="text-[8px] text-zinc-700 mt-1 uppercase font-black tracking-widest italic">TargetID: ${l.resource_id}</div>` : ''}
+                        </td>
+                        <td class="px-8 py-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full ${l.actor === 'SYSTEM_KERNEL' ? 'bg-blue-500' : 'bg-amber-500'}"></div>
+                                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">${l.actor}</span>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6 text-right">
+                            <span class="text-[8px] font-mono text-zinc-700 break-all">${l.checksum ? l.checksum.substring(0, 32) : 'GENESIS_CHAIN'}...</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
         }
 
         async function syncComplianceReports() {
@@ -806,15 +1721,15 @@
             const data = await res.json();
             const grid = document.getElementById('reports-grid');
             grid.innerHTML = data.map(r => `
-                <div class="p-8 bg-zinc-900/50 rounded-[2rem] border border-white/5 group hover:bg-sky-500/10 transition duration-500">
+                <div class="p-8 enterprise-card group hover:bg-blue-500/5 transition duration-500">
                     <div class="flex justify-between items-start mb-10">
-                        <div class="w-12 h-12 rounded-2xl bg-zinc-950 flex items-center justify-center border border-white/5">
-                            <i data-lucide="file-check" class="text-sky-500 w-5 h-5"></i>
+                        <div class="w-12 h-12 rounded-xl bg-zinc-950 flex items-center justify-center border border-white/5">
+                            <i data-lucide="file-check" class="text-blue-500 w-5 h-5"></i>
                         </div>
-                        <span class="text-[9px] font-black text-sky-500 uppercase tracking-widest">${r.status}</span>
+                        <span class="text-[9px] font-bold text-blue-500 uppercase tracking-widest">${r.status}</span>
                     </div>
-                    <h5 class="text-white font-black text-sm uppercase italic tracking-tight mb-4">${r.name}</h5>
-                    <div class="flex justify-between items-end text-[10px] font-mono text-zinc-600">
+                    <h5 class="text-white font-bold text-sm uppercase tracking-tight mb-4">${r.name}</h5>
+                    <div class="flex justify-between items-end text-[10px] font-mono text-zinc-600 font-bold">
                         <span>ID: ${r.id}</span>
                         <span>${r.size} | ${r.date}</span>
                     </div>
@@ -823,52 +1738,187 @@
             lucide.createIcons();
         }
 
-        async function syncNetworkTopology() {
-            const res = await fetch('/network-topology');
-            const data = await res.json();
-            const map = document.getElementById('topology-map');
-            map.innerHTML = `
-                <div class="flex flex-col items-center gap-12 relative w-full">
-                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-12 w-full max-w-4xl relative z-10">
-                        ${data.nodes.map(n => `
-                            <div class="p-8 bg-zinc-950 rounded-3xl border border-white/10 flex flex-col items-center text-center group hover:border-sky-500 transition duration-500">
-                                <div class="w-12 h-12 rounded-2xl bg-zinc-900 flex items-center justify-center mb-6 group-hover:bg-sky-500/10 transition">
-                                    <i data-lucide="${n.type == 'Gateway' ? 'zap' : (n.type == 'Storage' ? 'database' : 'cpu')}" class="text-sky-500 w-5 h-5"></i>
-                                </div>
-                                <h6 class="text-white font-black text-[12px] uppercase italic mb-2">${n.id}</h6>
-                                <p class="text-[9px] text-zinc-600 font-bold uppercase tracking-widest mb-4">${n.type}</p>
-                                <div class="w-full h-1.5 bg-zinc-900 rounded-full overflow-hidden">
-                                    <div class="h-full bg-sky-500" style="width: ${n.load}"></div>
-                                </div>
-                                <span class="text-[8px] font-mono text-zinc-700 mt-2 uppercase">Load: ${n.load}</span>
+        async function syncInfrastructureMonitor() {
+            try {
+                // 1. Fetch Stats
+                const statsRes = await fetch('/infrastructure/stats');
+                const stats = await statsRes.json();
+
+                document.getElementById('infra-posture-score').innerText = stats.average_posture + '%';
+                document.getElementById('infra-avg-coverage').innerText = stats.average_coverage + '%';
+                document.getElementById('infra-coverage-bar').style.width = stats.average_coverage + '%';
+                document.getElementById('infra-total-assets').innerText = stats.total_assets;
+                document.getElementById('infra-env-prod').innerText = stats.environment_breakdown.Production || 0;
+                document.getElementById('infra-env-stag').innerText = stats.environment_breakdown.Staging || 0;
+                document.getElementById('infra-env-dev').innerText = stats.environment_breakdown.Development || 0;
+
+                const ring = document.getElementById('infra-posture-ring');
+                const offset = 552 - (552 * (stats.average_posture / 100));
+                ring.style.strokeDashoffset = offset;
+                ring.style.color = stats.average_posture >= 90 ? '#10b981' : (stats.average_posture >= 75 ? '#0ea5e9' : '#f59e0b');
+
+                // 2. Fetch Assets
+                const assetsRes = await fetch('/infrastructure/assets');
+                const assets = await assetsRes.json();
+                const grid = document.getElementById('infra-asset-grid');
+
+                grid.innerHTML = assets.map(a => `
+                    <div class="p-8 enterprise-card hover:bg-white/5 transition group">
+                        <div class="flex justify-between items-start mb-10">
+                            <div class="w-12 h-12 rounded-xl bg-zinc-950 flex items-center justify-center border border-white/5 group-hover:bg-blue-500/10 transition duration-500">
+                                <i data-lucide="${a.type === 'Service' ? 'cpu' : (a.type === 'Application' ? 'layout' : 'github')}" class="text-blue-500 w-5 h-5"></i>
                             </div>
-                        `).join('')}
+                            <span class="px-3 py-1 bg-zinc-950 border border-white/5 rounded-lg text-[8px] font-bold uppercase tracking-widest text-zinc-500">${a.environment}</span>
+                        </div>
+                        <h5 class="text-white font-bold text-sm uppercase tracking-tight mb-2 truncate">${a.name}</h5>
+                        <p class="text-zinc-600 text-[10px] font-medium leading-relaxed line-clamp-2 h-10 mb-8">${a.description || 'No asset description provided.'}</p>
+                        
+                        <div class="space-y-6">
+                            <div class="space-y-2">
+                                <div class="flex justify-between text-[9px] font-bold uppercase tracking-widest">
+                                    <span class="text-zinc-500">Coverage</span>
+                                    <span class="text-white">${a.coverage}%</span>
+                                </div>
+                                <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                    <div class="h-full bg-blue-500" style="width: ${a.coverage}%"></div>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-end">
+                                <div>
+                                    <span class="text-[9px] font-bold text-zinc-700 uppercase block mb-1">Critical</span>
+                                    <span class="text-xl font-extrabold ${a.critical_vulnerabilities > 0 ? 'text-red-500' : 'text-zinc-500'}">${a.critical_vulnerabilities}</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-[9px] font-bold text-zinc-700 uppercase block mb-1">Posture</span>
+                                    <span class="text-xl font-extrabold text-emerald-500">${a.posture_score}%</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                    <div class="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
-                         <i data-lucide="activity" class="w-96 h-96"></i>
-                    </div>
-                </div>
-            `;
-            lucide.createIcons();
+                `).join('');
+                lucide.createIcons();
+            } catch (e) {
+                console.error("Infra Monitor Sync Fail", e);
+            }
         }
 
-        async function syncEngineSpecs() {
-            const res = await fetch('/system/scanners');
-            const data = await res.json();
-            const grid = document.getElementById('engine-specs-grid');
-            grid.innerHTML = data.scanners.map(s => `
-                <div class="p-10 bg-zinc-900 border border-white/5 rounded-[3rem] group">
-                    <div class="flex justify-between items-start mb-8">
-                        <h5 class="text-white font-black text-xl italic uppercase tracking-tighter">${s.name}</h5>
-                        <span class="px-3 py-1 bg-green-500/10 text-green-500 text-[10px] font-black rounded-lg uppercase tracking-widest">${s.status}</span>
-                    </div>
-                    <div class="space-y-3">
-                        ${s.capabilities.map(c => `<div class="text-[11px] text-zinc-500 font-medium flex items-center gap-3"><div class="w-1.5 h-1.5 rounded-full bg-sky-500/40"></div> ${c}</div>`).join('')}
-                    </div>
-                    <div class="mt-10 pt-6 border-t border-white/5 text-[9px] font-bold text-zinc-700 uppercase tracking-[0.2em] group-hover:text-sky-500 transition">Autonomous Engine operational.</div>
-                </div>
-            `).join('');
+        async function syncSystemCore() {
+            try {
+                // 1. Fetch Health Stats
+                const healthRes = await fetch('/system/health');
+                const health = await healthRes.json();
+
+                document.getElementById('health-ai-status').innerText = health.ai_engine.status;
+                document.getElementById('health-scanner-status').innerText = health.scanner.status;
+                document.getElementById('health-queue-total').innerText = health.processing_queues.total_pending;
+                document.getElementById('health-uptime').innerText = health.uptime;
+
+                // 2. Fetch Scan History
+                const res = await fetch('/scans');
+                const data = await res.json();
+                const body = document.getElementById('scan-history-body');
+                if (!data || data.length === 0) {
+                    body.innerHTML = '<tr><td colspan="4" class="px-8 py-20 text-center italic text-zinc-600">No diagnostic logs found.</td></tr>';
+                    return;
+                }
+
+                body.innerHTML = data.map(s => `
+                    <tr class="hover:bg-white/5 transition group">
+                        <td class="px-8 py-6">
+                            <div class="font-mono text-white text-[10px] mb-1">#${s.id.split('-')[0]}</div>
+                            <div class="text-[9px] text-zinc-600 font-bold uppercase">${new Date(s.timestamp).toLocaleString()}</div>
+                        </td>
+                        <td class="px-8 py-6">
+                            <div class="flex items-center gap-3">
+                                <i data-lucide="folder" class="w-3 h-3 text-sky-500/50"></i>
+                                <span class="text-zinc-300 font-bold">${s.target}</span>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6 text-center">
+                            <span class="px-3 py-1 bg-sky-500/10 text-sky-500 rounded-full text-[9px] font-black uppercase tracking-widest">${s.status}</span>
+                        </td>
+                        <td class="px-8 py-6 text-right">
+                            <div class="font-black text-white text-lg">${s.findings}</div>
+                            <div class="flex gap-1 justify-end mt-1">
+                                ${Object.entries(s.breakdown).map(([sev, count]) => `
+                                    <div class="w-1.5 h-3 rounded-full ${sev === 'CRITICAL' ? 'bg-red-500' : (sev === 'HIGH' ? 'bg-orange-500' : 'bg-sky-500')}" title="${sev}: ${count}"></div>
+                                `).join('')}
+                            </div>
+                        </td>
+                    </tr>
+                `).join('');
+                lucide.createIcons();
+            } catch (e) {
+                console.error("System Core Sync Fail", e);
+            }
+        }
+
+        async function syncAuditStream() {
+            try {
+                const res = await fetch('/audit-logs');
+                const logs = await res.json();
+                const stream = document.getElementById('audit-terminal-stream');
+                const count = document.getElementById('audit-stream-count');
+
+                if (count) count.innerText = `EVENTS: ${logs.length}`;
+
+                if (stream) {
+                    stream.innerHTML = logs.map(l => {
+                        const typeColor = l.action_type === 'DETECTION' ? 'text-amber-500' : (
+                            l.action_type === 'SCAN' ? 'text-emerald-500' : (
+                                l.action_type === 'RESOLUTION' ? 'text-blue-500' : 'text-zinc-500'
+                            ));
+                        return `
+                            <div class="flex gap-6 border-l border-white/5 pl-4 hover:bg-white/5 transition py-2 items-center">
+                                <span class="text-zinc-700 shrink-0 font-mono text-[9px]">[${new Date(l.timestamp).toLocaleTimeString()}]</span>
+                                <span class="${typeColor} font-bold shrink-0 w-24 text-[10px] tracking-widest">${l.action_type}</span>
+                                <span class="text-zinc-400 flex-1 text-[11px] font-medium">${l.description}</span>
+                                <span class="text-zinc-600 font-bold text-[9px] shrink-0 uppercase tracking-tighter">${l.actor}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    // Auto-scroll to bottom
+                    const container = document.getElementById('audit-terminal-container');
+                    if (container) container.scrollTop = container.scrollHeight;
+                }
+                lucide.createIcons();
+            } catch (e) {
+                console.error("Audit Stream Sync Fail", e);
+            }
+        }
+
+        async function triggerScan() {
+            if (scanInProgress) return;
+            const target = document.getElementById('scan-target').value || '.';
+            const btn = document.getElementById('btn-run-scan');
+
+            scanInProgress = true;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> DIAGNOSING...`;
             lucide.createIcons();
+
+            try {
+                sendHUDToast("CORE_SIGNAL: Initializing diagnostic logic...", "info");
+                const res = await fetch('/scan-trigger?path=' + encodeURIComponent(target), {
+                    method: 'POST'
+                });
+                const result = await res.json();
+
+                if (result.status === 'success') {
+                    sendHUDToast(`DIAGNOSTIC_COMPLETE: Identified ${result.findings} anomalies.`, "success");
+                    await syncAllData();
+                } else {
+                    sendHUDToast(`DIAGNOSTIC_ERROR: ${result.message}`, "error");
+                }
+            } catch (e) {
+                sendHUDToast("CORE_FATAL: Link severed during scan.", "error");
+            } finally {
+                scanInProgress = false;
+                btn.disabled = false;
+                btn.innerHTML = `<i data-lucide="zap" class="w-4 h-4"></i> Launch Diagnostic`;
+                lucide.createIcons();
+            }
         }
 
         function updateForensicDetails() {
@@ -878,17 +1928,10 @@
         }
 
         // --- CORE SYSTEM ACTIONS ---
+        // Deprecated: Global diagnostic redirected to Scanner Control Center
         async function runGlobalDiagnostic() {
-            if (scanInProgress) return;
-            scanInProgress = true;
-            sendHUDToast("DIAGNOSTIC_QUEUE: Initiating local sector scan...", "info");
-
-            const res = await fetch('/scan-trigger', { method: 'POST' });
-            const data = await res.json();
-
-            sendHUDToast(`CYBER_AUDIT_COMPLETE: Found ${data.found} vulnerable signatures.`, "success");
-            await syncAllData();
-            scanInProgress = false;
+            switchTab('engine');
+            sendHUDToast("REDIRECTION: Accessing Scanner Command Center.", "info");
         }
 
         async function approveNeuralPatch() {
@@ -897,7 +1940,7 @@
             const res = await fetch(`/review/${selectedVulnObject.id}?action=approve`, { method: 'POST' });
             if (res.ok) {
                 sendHUDToast("INTEGRITY_RESTORED: Source code successfully fixed.", "success");
-                await syncAllData();
+                await syncAllData(); // Immediate sync
             }
         }
 
@@ -906,7 +1949,7 @@
             const res = await fetch(`/review/${selectedVulnObject.id}?action=reject`, { method: 'POST' });
             if (res.ok) {
                 sendHUDToast("ANOMALY_BYPASSED: Logic chain recalibrated.", "info");
-                await syncAllData();
+                await syncAllData(); // Immediate sync
             }
         }
 
@@ -920,21 +1963,22 @@
         }
 
         function startMainHeartbeat() {
-            refreshSystemData = syncAllData; // Alias for heartbeat
             syncAllData();
-            setInterval(syncAllData, 20000); // 20s cycle
+            setInterval(syncAllData, 5000); // 5s REAL-TIME EXECUTIVE CYCLE
         }
 
         function sendHUDToast(msg, type) {
             const container = document.getElementById('toast-container');
             const t = document.createElement('div');
-            t.className = `p-6 bg-zinc-900 rounded-3xl border-l-[6px] ${type == 'success' ? 'border-sky-500' : (type == 'error' ? 'border-red-500' : 'border-zinc-700')} shadow-2xl animate-hud-toast pointer-events-auto`;
+            t.className = `p-5 bg-zinc-900 rounded-xl border-l-[4px] ${type == 'success' ? 'border-emerald-500' : (type == 'error' ? 'border-red-500' : 'border-blue-500')} shadow-2xl animate-hud-toast pointer-events-auto border border-white/5`;
             t.innerHTML = `
-                <div class="flex items-center gap-5">
-                     <i data-lucide="${type == 'success' ? 'shield-check' : 'alert-circle'}" class="w-6 h-6 ${type == 'success' ? 'text-sky-500' : 'text-zinc-500'}"></i>
+                <div class="flex items-center gap-4">
+                     <div class="w-8 h-8 rounded-lg bg-zinc-950 flex items-center justify-center border border-white/5">
+                        <i data-lucide="${type == 'success' ? 'shield-check' : (type == 'error' ? 'alert-octagon' : 'blue-shield')}" class="w-4 h-4 ${type == 'success' ? 'text-emerald-500' : (type == 'error' ? 'text-red-500' : 'text-blue-500')}"></i>
+                     </div>
                      <div>
-                        <p class="text-[10px] font-black uppercase tracking-widest text-zinc-600 mb-0.5 italic">SOC Message</p>
-                        <p class="text-xs font-black text-white tracking-widest uppercase italic">${msg}</p>
+                        <p class="text-[9px] font-bold uppercase tracking-widest text-zinc-600 mb-0.5">System Notification</p>
+                        <p class="text-[11px] font-bold text-white tracking-tight uppercase">${msg}</p>
                      </div>
                 </div>
             `;

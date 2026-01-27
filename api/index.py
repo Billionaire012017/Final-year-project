@@ -84,7 +84,7 @@ def trigger_scan(path: str = "."):
     from scan_engine.core import ScanEngine
     engine = ScanEngine()
     result = engine.run_scan(path)
-    return {"status": "success", "found": len(result.vulnerabilities)}
+    return {"status": "success", "findings": len(result.vulnerabilities)}
 
 @app.get("/alerts")
 def get_alerts():
@@ -107,6 +107,21 @@ def get_reports_metadata():
         {"id": "R-102", "name": "Compliance Audit (ISO 27001)", "status": "Verified", "size": "5.1 MB", "date": "2026-01-24"},
         {"id": "R-103", "name": "AI Remediation Effectiveness", "status": "Generated", "size": "1.8 MB", "date": "2026-01-23"}
     ]
+
+@app.get("/infrastructure/assets")
+def get_infra_assets():
+    from scan_engine.infrastructure import InfrastructureService
+    return InfrastructureService().get_all_assets()
+
+@app.get("/infrastructure/stats")
+def get_infra_stats():
+    from scan_engine.infrastructure import InfrastructureService
+    return InfrastructureService().get_infrastructure_summary()
+
+@app.get("/system/health")
+def get_system_health():
+    from scan_engine.health import health_monitor
+    return health_monitor.get_health_telemetry()
 
 @app.get("/network-topology")
 def get_network_topology():
@@ -148,32 +163,51 @@ def get_source_code(vuln_id: str):
     vuln = session.get(VulnerabilityRecord, vuln_id)
     if not vuln: raise HTTPException(status_code=404, detail="Vuln not found")
     
-    try:
-        if os.path.exists(vuln.file_path):
-            with open(vuln.file_path, "r", encoding="utf-8") as f:
-                return {"content": f.read(), "line": vuln.line_number, "file": vuln.file_path, "description": vuln.description}
-        return {"content": f"# [ERR] File {vuln.file_path} moved or deleted.", "line": 1, "file": vuln.file_path, "description": vuln.description}
-    except: raise HTTPException(status_code=500, detail="IO Error")
+    return {
+        "content_original": vuln.full_code,
+        "content_fixed": vuln.full_code_fixed,
+        "explanation": vuln.ai_explanation,
+        "guidance": vuln.remediation_guidance,
+        "lines": vuln.vulnerable_lines, 
+        "file": vuln.file_path,
+        "file_name": vuln.file_name,
+        "type": vuln.vulnerability_type,
+        "severity": vuln.severity,
+        "status": vuln.status,
+        "risk_score": vuln.risk_score,
+        "root_cause": vuln.root_cause,
+        "exploit_scenario": vuln.exploit_scenario,
+        "exploitability": vuln.exploitability,
+        "exposure": vuln.exposure,
+        "asset_criticality": vuln.asset_criticality,
+        "business_impact": vuln.business_impact,
+        "reasoning_log": vuln.ai_reasoning_log
+    }
 
 @app.post("/review/{vuln_id}")
 def review_patch(vuln_id: str, action: str, reason: str = "Web UI Action"):
     from scan_engine.intel.lifecycle import LifecycleManager
-    from scan_engine.intel.models import VulnerabilityState
-    from scan_engine.patching.feedback import FeedbackService
-    from scan_engine.patching.models import PatchSuggestion
+    from scan_engine.intel.models import VulnerabilityStatus, VulnerabilityRecord
     from scan_engine.intel.db import get_session
 
     session = get_session()
     lifecycle = LifecycleManager()
-    feedback_service = FeedbackService()
-    
-    patch = session.query(PatchSuggestion).filter(PatchSuggestion.vulnerability_id == vuln_id).first()
+    vuln = session.get(VulnerabilityRecord, vuln_id)
     
     if action.lower() == "approve":
-        lifecycle.transition_state(vuln_id, VulnerabilityState.FIXED, action)
-        if patch: feedback_service.record_feedback(patch.id, "APPROVE", reason)
-    else:
-        lifecycle.transition_state(vuln_id, VulnerabilityState.REJECTED, reason)
-        if patch: feedback_service.record_feedback(patch.id, "REJECT", reason)
+        # REAL FILE PATCHING LOGIC
+        if vuln and vuln.full_code_fixed and os.path.exists(vuln.file_path):
+            try:
+                with open(vuln.file_path, "w", encoding="utf-8") as f:
+                    f.write(vuln.full_code_fixed)
+                lifecycle.transition_state(vuln_id, VulnerabilityStatus.FIXED, "AI Patch Applied & Approved")
+            except Exception as e:
+                raise HTTPException(status_code=500, detail=f"Patch Failed: {str(e)}")
+        else:
+            lifecycle.transition_state(vuln_id, VulnerabilityStatus.FIXED, action)
+    elif action.lower() == "reject":
+        lifecycle.transition_state(vuln_id, VulnerabilityStatus.REJECTED, reason)
+    elif action.lower() == "validate":
+        lifecycle.transition_state(vuln_id, VulnerabilityStatus.VALIDATED, reason)
     
     return {"status": "success"}

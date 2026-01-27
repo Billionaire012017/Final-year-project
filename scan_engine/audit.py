@@ -8,25 +8,41 @@ import io
 
 class SystemAudit(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    event_type: str # SCAN, PATCH, AUTH, REVIEW
+    action_type: str  # SCAN, DETECTION, AI_FIX, VALIDATION, APPROVAL, RESOLUTION
     description: str
-    user_id: str = Field(default="system") # Simulated user
+    actor: str = Field(default="SYSTEM_KERNEL")
+    resource_id: Optional[str] = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
+    checksum: str = Field(default="GENESIS_HASH") # Simulation of immutable chain
 
 class AuditService:
     def __init__(self):
         self.session = get_session()
 
-    def log_event(self, event_type: str, description: str, user_id: str = "system"):
+    def log_event(self, action_type: str, description: str, actor: str = "SYSTEM_KERNEL", resource_id: Optional[str] = None):
+        import hashlib
+        
+        # Get last entry checksum for chain simulation
+        last_entry = self.session.query(SystemAudit).order_by(SystemAudit.id.desc()).first()
+        prev_hash = last_entry.checksum if last_entry else "GENESIS"
+        
+        # Create checksum: hash(prev_hash + action + actor + timestamp)
+        ts = datetime.utcnow().isoformat()
+        raw = f"{prev_hash}|{action_type}|{actor}|{ts}"
+        checksum = hashlib.sha256(raw.encode()).hexdigest()
+
         audit = SystemAudit(
-            event_type=event_type,
+            action_type=action_type,
             description=description,
-            user_id=user_id
+            actor=actor,
+            resource_id=resource_id,
+            timestamp=datetime.utcnow(),
+            checksum=checksum
         )
         self.session.add(audit)
         self.session.commit()
 
     def export_logs_json(self) -> str:
-        logs = self.session.query(SystemAudit).all()
+        logs = self.session.query(SystemAudit).order_by(SystemAudit.timestamp.desc()).all()
         data = [l.model_dump(mode='json') for l in logs]
         return json.dumps(data, indent=4, default=str)

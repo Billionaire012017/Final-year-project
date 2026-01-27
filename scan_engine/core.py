@@ -27,60 +27,73 @@ class ScanEngine:
         self.alert_service = AlertService()
         self.audit_service = AuditService()
 
-    def run_scan(self, target_path: str, scan_type: str = "manual") -> ScanResult:
+    def run_scan(self, target_path: str, scan_type: str = "manual") -> ScanRecord:
         scan_id = str(uuid.uuid4())
+        session = get_session()
         
-        self.audit_service.log_event("SCAN_START", f"Started scan on {target_path}")
+        # Create persistent scan record
+        scan_record = ScanRecord(
+            id=scan_id,
+            target=target_path,
+            status="RUNNING",
+            timestamp=datetime.utcnow()
+        )
+        session.add(scan_record)
+        session.commit()
+        
+        self.audit_service.log_event("SCAN", f"Started diagnostic scan on target: {target_path}", resource_id=scan_id)
         
         all_vulnerabilities: List[Vulnerability] = []
         
-        print(f"Starting scan {scan_id} on {target_path} (Type: {scan_type})")
-
         for scanner in self.scanners:
-            print(f"Running {scanner.name}...")
             try:
                 findings = scanner.scan(target_path)
-                print(f"  - Found {len(findings)} issues.")
                 all_vulnerabilities.extend(findings)
             except Exception as e:
-                print(f"  - Error executing {scanner.name}: {e}")
+                print(f"Error executing {scanner.name}: {e}")
 
-        # Save to DB
-        session = get_session()
+        severity_map = {}
+        findings_saved = 0
+        
         for vuln in all_vulnerabilities:
             try:
+                # Deduplication logic: (file_path, line_number, name)
+                # Create a unique hash for this vulnerability instance
+                import hashlib
+                dedup_key = hashlib.md5(f"{vuln.file_path}:{vuln.line_number}:{vuln.name}".encode()).hexdigest()
+                
+                # Check for existing record
+                exists = session.get(VulnerabilityRecord, dedup_key)
+                if exists:
+                    continue
+
                 # Enrich and convert to Record
                 record = self.enricher.enrich_vulnerability(vuln)
+                record.id = dedup_key # Override with dedup key
+                record.scan_id = scan_id
                 
-                # Check CRITICAL Alert
-                if record.severity == "CRITICAL" or record.severity == "HIGH":
-                     self.alert_service.trigger_alert(record.severity, f"Detected {record.severity} vulnerability: {record.name} in {record.file_path}")
+                # Severity tracking
+                sev = record.severity.upper()
+                severity_map[sev] = severity_map.get(sev, 0) + 1
+                
+                if sev in ["CRITICAL", "HIGH"]:
+                     self.alert_service.trigger_alert(sev, f"Detected {sev} vulnerability: {record.vulnerability_type} in {record.file_path}")
 
-                # Check if already exists (optional, simply merging or ignoring for now)
-                exists = session.get(VulnerabilityRecord, record.id)
-                if not exists:
-                    session.add(record)
+                session.add(record)
+                findings_saved += 1
             except Exception as e:
                 print(f"Error saving vulnerability {vuln.id}: {e}")
         
+        # Update scan record results
+        import json
+        scan_record.status = "SUCCESS"
+        scan_record.findings_count = findings_saved
+        scan_record.severity_breakdown = json.dumps(severity_map)
+        
+        session.add(scan_record)
         session.commit()
         session.close()
 
-        self.audit_service.log_event("SCAN_COMPLETE", f"Completed scan with {len(all_vulnerabilities)} findings")
-
-        # Determine status
-        status = ScanStatus.SUCCESS
+        self.audit_service.log_event("SCAN", f"Diagnostic scan sequence terminated. Findings: {findings_saved}", resource_id=scan_id)
         
-        result = ScanResult(
-            scan_id=scan_id,
-            timestamp=datetime.utcnow(),
-            status=status,
-            vulnerabilities=all_vulnerabilities,
-            metadata={
-                "target_path": target_path,
-                "scan_type": scan_type,
-                "scanner_count": len(self.scanners)
-            }
-        )
-        
-        return result
+        return scan_record
