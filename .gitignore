@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Database
+*.db
+*.sqlite
+vulnerabilities.db
+
+# Logs
+*.log
+
+# Deployment
+.vercel/
+.vercel_history
+dist/
+build/
+.next/
+node_modules/
