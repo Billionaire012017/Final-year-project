@@ -11,13 +11,17 @@ if root_dir not in sys.path:
 # 2. PERSISTENCE DYNAMICS
 import scan_engine.intel.db as db_module
 db_path = os.getenv("DB_PATH")
-if db_path:
-    # Ensure directory exists for persistent disk
-    try:
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
-        db_module.DB_URL = f"sqlite:///{db_path}"
-    except:
-        pass # Fallback to local if disk not writable
+if not db_path:
+    # Use absolute path to project root to avoid CWD issues on Render
+    db_path = os.path.join(root_dir, "vulnerabilities.db")
+
+try:
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+    db_module.DB_URL = f"sqlite:///{db_path}"
+except Exception as e:
+    print(f"DATABASE_PATH_INIT_WARNING: {e}")
+    # Fallback to /tmp which is usually writable on Render
+    db_module.DB_URL = "sqlite:////tmp/vulnerabilities.db"
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -63,12 +67,16 @@ def health_check():
 def get_dashboard_metrics():
     analytics = AnalyticsService()
     try:
+        kpis = analytics.get_kpis()
+        health_score = analytics.get_health_score()
         return {
-            "kpis": analytics.get_kpis(),
-            "health_score": analytics.get_health_score()
+            "kpis": kpis,
+            "health_score": health_score
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        # Log the error for debugging purposes
+        print(f"Error fetching dashboard metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve dashboard metrics: {str(e)}")
 
 @app.get("/recent-activity")
 def get_recent_activity():
@@ -187,7 +195,7 @@ def get_source_code(vuln_id: str):
 @app.post("/review/{vuln_id}")
 def review_patch(vuln_id: str, action: str, reason: str = "Web UI Action"):
     from scan_engine.intel.lifecycle import LifecycleManager
-    from scan_engine.intel.models import VulnerabilityStatus, VulnerabilityRecord
+    from scan_engine.intel.models import VulnerabilityRecord, VulnerabilityHistory, ScanRecord
     from scan_engine.intel.db import get_session
 
     session = get_session()

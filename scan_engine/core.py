@@ -6,7 +6,7 @@ from scan_engine.scanners.bandit_scanner import BanditScanner
 from scan_engine.scanners.semgrep_scanner import SemgrepScanner
 from scan_engine.intel.db import create_db_and_tables, get_session
 from scan_engine.intel.enrichment import EnrichmentService
-from scan_engine.intel.models import VulnerabilityRecord, VulnerabilityHistory
+from scan_engine.intel.models import VulnerabilityRecord, VulnerabilityHistory, ScanRecord
 from scan_engine.patching.models import PatchSuggestion
 from scan_engine.patching.feedback import FeedbackRecord
 from scan_engine.alerts import AlertService, AlertRecord

@@ -11,6 +11,9 @@ def get_engine():
     return engine
 
 def create_db_and_tables():
+    # Crucial: Import all models here to register them with metadata before create_all
+    from . import models
+    import scan_engine.audit as audit_mod
     SQLModel.metadata.create_all(get_engine())
 
 def get_session():
