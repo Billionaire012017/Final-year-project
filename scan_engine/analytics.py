@@ -62,30 +62,31 @@ class AnalyticsService:
             return actions[::-1]
 
     def get_avg_fix_time_seconds(self):
-        fixed_vulns = self.session.query(VulnerabilityRecord).filter(VulnerabilityRecord.status == VulnerabilityStatus.FIXED).all()
-        if not fixed_vulns:
-            return 0.0
-            
-        total_time = 0.0
-        count = 0
-        
-        for vuln in fixed_vulns:
-            history = self.session.query(VulnerabilityHistory).filter(
-                VulnerabilityHistory.vulnerability_id == vuln.id
-            ).order_by(VulnerabilityHistory.timestamp).all()
-            
-            if not history:
-                continue
+        with get_session() as session:
+            fixed_vulns = session.query(VulnerabilityRecord).filter(VulnerabilityRecord.status == VulnerabilityStatus.FIXED).all()
+            if not fixed_vulns:
+                return 0.0
                 
-            start_time = history[0].timestamp
-            end_time = history[-1].timestamp
-            total_time += (end_time - start_time).total_seconds()
-            count += 1
+            total_time = 0.0
+            count = 0
             
-        if count == 0:
-            return 0.0
-            
-        return round(total_time / count, 1)
+            for vuln in fixed_vulns:
+                history = session.query(VulnerabilityHistory).filter(
+                    VulnerabilityHistory.vulnerability_id == vuln.id
+                ).order_by(VulnerabilityHistory.timestamp).all()
+                
+                if not history:
+                    continue
+                    
+                start_time = history[0].timestamp
+                end_time = history[-1].timestamp
+                total_time += (end_time - start_time).total_seconds()
+                count += 1
+                
+            if count == 0:
+                return 0.0
+                
+            return round(total_time / count, 1)
 
     def get_pipeline_data(self):
         with get_session() as session:

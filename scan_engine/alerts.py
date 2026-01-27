@@ -12,14 +12,16 @@ class AlertRecord(SQLModel, table=True):
 
 class AlertService:
     def __init__(self):
-        self.session = get_session()
+        pass
 
     def trigger_alert(self, level: str, message: str):
-        alert = AlertRecord(level=level, message=message)
-        self.session.add(alert)
-        self.session.commit()
+        with get_session() as session:
+            alert = AlertRecord(level=level, message=message)
+            session.add(alert)
+            session.commit()
         # In a real system, send email/slack here
         # print(f"[{level}] ALERT: {message}")
 
     def get_recent_alerts(self, limit: int = 5) -> List[AlertRecord]:
-        return self.session.query(AlertRecord).order_by(AlertRecord.timestamp.desc()).limit(limit).all()
+        with get_session() as session:
+            return session.query(AlertRecord).order_by(AlertRecord.timestamp.desc()).limit(limit).all()

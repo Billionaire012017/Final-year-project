@@ -12,13 +12,14 @@ class FeedbackRecord(SQLModel, table=True):
 
 class FeedbackService:
     def __init__(self):
-        self.session = get_session()
+        pass
 
     def record_feedback(self, patch_id: int, action: str, comments: str = None):
-        feedback = FeedbackRecord(
-            patch_id=patch_id,
-            action=action,
-            comments=comments
-        )
-        self.session.add(feedback)
-        self.session.commit()
+        with get_session() as session:
+            feedback = FeedbackRecord(
+                patch_id=patch_id,
+                action=action,
+                comments=comments
+            )
+            session.add(feedback)
+            session.commit()
