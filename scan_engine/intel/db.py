@@ -1,4 +1,5 @@
 from sqlmodel import SQLModel, create_engine, Session
+from contextlib import contextmanager
 
 # Defaults
 DB_URL = "sqlite:///vulnerabilities.db"
@@ -7,7 +8,14 @@ engine = None
 def get_engine():
     global engine
     if engine is None:
-        engine = create_engine(DB_URL)
+        # Optimization for SQLite and QueuePool management
+        engine = create_engine(
+            DB_URL,
+            pool_size=20,
+            max_overflow=10,
+            pool_recycle=3600,
+            connect_args={"check_same_thread": False} # Required for SQLite + FastAPI
+        )
     return engine
 
 def create_db_and_tables():
@@ -16,5 +24,11 @@ def create_db_and_tables():
     import scan_engine.audit as audit_mod
     SQLModel.metadata.create_all(get_engine())
 
+@contextmanager
 def get_session():
-    return Session(get_engine())
+    """Context manager for database sessions to prevent connection leaks."""
+    session = Session(get_engine())
+    try:
+        yield session
+    finally:
+        session.close()

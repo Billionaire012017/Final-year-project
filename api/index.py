@@ -32,6 +32,17 @@ from scan_engine.intel.db import create_db_and_tables
 # Initialize DB on load
 create_db_and_tables()
 
+# Auto-Seed for "Neat and Clean" look on fresh deployments
+try:
+    from seed_data import seed_enterprise_data
+    from scan_engine.intel.models import VulnerabilityRecord
+    with db_module.get_session() as session:
+        if session.query(VulnerabilityRecord).count() == 0:
+            print("🌱 EMPTY_STATE_DETECTED: Bootstrapping Enterprise Security Data...")
+            seed_enterprise_data()
+except Exception as e:
+    print(f"SEEDING_SKIPPED: {e}")
+
 app = FastAPI(title="SecLAB Alpha Core")
 
 # 3. CORS & REDIRECT HARDENING (Cures 405 Method Not Allowed)
@@ -164,55 +175,57 @@ def get_scanner_info():
     }
 
 @app.get("/vulnerabilities/{vuln_id}/source")
-def get_source_code(vuln_id: str):
+def get_vulnerability_source(vuln_id: str):
     from scan_engine.intel.models import VulnerabilityRecord
     from scan_engine.intel.db import get_session
-    session = get_session()
-    vuln = session.get(VulnerabilityRecord, vuln_id)
-    if not vuln: raise HTTPException(status_code=404, detail="Vuln not found")
-    
-    return {
-        "content_original": vuln.full_code,
-        "content_fixed": vuln.full_code_fixed,
-        "explanation": vuln.ai_explanation,
-        "guidance": vuln.remediation_guidance,
-        "lines": vuln.vulnerable_lines, 
-        "file": vuln.file_path,
-        "file_name": vuln.file_name,
-        "type": vuln.vulnerability_type,
-        "severity": vuln.severity,
-        "status": vuln.status,
-        "risk_score": vuln.risk_score,
-        "root_cause": vuln.root_cause,
-        "exploit_scenario": vuln.exploit_scenario,
-        "exploitability": vuln.exploitability,
-        "exposure": vuln.exposure,
-        "asset_criticality": vuln.asset_criticality,
-        "business_impact": vuln.business_impact,
-        "reasoning_log": vuln.ai_reasoning_log
-    }
+    with get_session() as session:
+        vuln = session.get(VulnerabilityRecord, vuln_id)
+        if not vuln:
+            raise HTTPException(status_code=404, detail="Vulnerability not found")
+        
+        return {
+            "id": vuln.id,
+            "file": vuln.file_name,
+            "path": vuln.file_path,
+            "lines": vuln.vulnerable_lines,
+            "type": vuln.vulnerability_type,
+            "severity": vuln.severity,
+            "risk_score": vuln.risk_score,
+            "status": vuln.status,
+            "content_original": vuln.full_code or "# Source code not available",
+            "content_fixed": vuln.full_code_fixed or vuln.full_code or "# No fix generated",
+            "explanation": vuln.ai_explanation,
+            "guidance": vuln.remediation_guidance,
+            "exploit_scenario": vuln.exploit_scenario,
+            "root_cause": vuln.root_cause,
+            "exposure": vuln.exposure,
+            "exploitability": vuln.exploitability,
+            "asset_criticality": vuln.asset_criticality,
+            "business_impact": vuln.business_impact,
+            "reasoning_log": vuln.ai_reasoning_log
+        }
 
 @app.post("/review/{vuln_id}")
 def review_patch(vuln_id: str, action: str, reason: str = "Web UI Action"):
     from scan_engine.intel.lifecycle import LifecycleManager
-    from scan_engine.intel.models import VulnerabilityRecord, VulnerabilityHistory, ScanRecord
+    from scan_engine.intel.models import VulnerabilityRecord, VulnerabilityHistory, ScanRecord, VulnerabilityStatus
     from scan_engine.intel.db import get_session
 
-    session = get_session()
     lifecycle = LifecycleManager()
-    vuln = session.get(VulnerabilityRecord, vuln_id)
     
     if action.lower() == "approve":
-        # REAL FILE PATCHING LOGIC
-        if vuln and vuln.full_code_fixed and os.path.exists(vuln.file_path):
-            try:
-                with open(vuln.file_path, "w", encoding="utf-8") as f:
-                    f.write(vuln.full_code_fixed)
-                lifecycle.transition_state(vuln_id, VulnerabilityStatus.FIXED, "AI Patch Applied & Approved")
-            except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Patch Failed: {str(e)}")
-        else:
-            lifecycle.transition_state(vuln_id, VulnerabilityStatus.FIXED, action)
+        with get_session() as session:
+            vuln = session.get(VulnerabilityRecord, vuln_id)
+            # REAL FILE PATCHING LOGIC
+            if vuln and vuln.full_code_fixed and os.path.exists(vuln.file_path):
+                try:
+                    with open(vuln.file_path, "w", encoding="utf-8") as f:
+                        f.write(vuln.full_code_fixed)
+                    lifecycle.transition_state(vuln_id, VulnerabilityStatus.FIXED, "AI Patch Applied & Approved")
+                except Exception as e:
+                    raise HTTPException(status_code=500, detail=f"Patch Failed: {str(e)}")
+            else:
+                lifecycle.transition_state(vuln_id, VulnerabilityStatus.FIXED, action)
     elif action.lower() == "reject":
         lifecycle.transition_state(vuln_id, VulnerabilityStatus.REJECTED, reason)
     elif action.lower() == "validate":
