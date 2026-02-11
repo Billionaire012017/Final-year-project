@@ -264,7 +264,7 @@
                         <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping"></span>
                         <span class="text-[9px] font-black text-red-500 uppercase">Signal Loss...</span>
                     </div>
-                    <button onclick="runGlobalDiagnostic()"
+                    <button onclick="triggerScan()"
                         class="group relative px-6 py-2.5 bg-sky-600 hover:bg-sky-500 text-white rounded-xl overflow-hidden transition-all shadow-lg active:scale-95">
                         <div class="flex items-center gap-2 relative z-10">
                             <i data-lucide="zap" class="w-4 h-4"></i>
@@ -1254,11 +1254,7 @@
 
     <script>
         // --- GLOBAL STATE ---
-        let activeTabId = 'dashboard';
         let mainStatsChart = null;
-        let selectedVulnObject = null;
-        let scanInProgress = false;
-        let failCount = 0;
 
         // --- APP INITIALIZER ---
         window.addEventListener('load', async () => {
@@ -1274,13 +1270,17 @@
 
             // Continuous Clock
             setInterval(() => {
-                document.getElementById('real-clock').innerText = new Date().toLocaleTimeString('en-GB');
-                document.getElementById('uptime-clock').innerText = new Date().toLocaleTimeString();
+                const clock = document.getElementById('real-clock');
+                const uptime = document.getElementById('uptime-clock');
+                if (clock) clock.innerText = new Date().toLocaleTimeString('en-GB');
+                if (uptime) uptime.innerText = new Date().toLocaleTimeString();
             }, 1000);
         });
 
         function initCharts() {
-            const ctx = document.getElementById('mainFlowChart').getContext('2d');
+            const ctxEl = document.getElementById('mainFlowChart');
+            if (!ctxEl) return;
+            const ctx = ctxEl.getContext('2d');
             mainStatsChart = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -1315,12 +1315,14 @@
 
         // --- NAVIGATION ENGINE ---
         function switchTab(id) {
-            activeTabId = id;
+            updateState({ activeTabId: id });
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            document.getElementById('tab-' + id).classList.add('active');
+            const target = document.getElementById('tab-' + id);
+            if (target) target.classList.add('active');
 
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('sidebar-active'));
-            document.getElementById('nav-' + id).classList.add('sidebar-active');
+            const navBtn = document.getElementById('nav-' + id);
+            if (navBtn) navBtn.classList.add('sidebar-active');
 
             const tabTitles = {
                 dashboard: 'Sentinel_Dashboard', vulnerabilities: 'Signature_Repo', 'patch-lab': 'AI_Neural_Studio',
@@ -1328,74 +1330,157 @@
                 reports: 'Compliance_Vault', network: 'Infra_Monitor', engine: 'System_Core_Monitor',
                 audit: 'Compliance_Ledger', 'audit-stream': 'Audit_Terminal'
             };
-            document.getElementById('tab-label').innerText = (tabTitles[id] || id).toUpperCase();
-
-            syncAllData();
+            const label = document.getElementById('tab-label');
+            if (label) label.innerText = (tabTitles[id] || id).toUpperCase();
         }
 
-        // --- DATA SYNCHRONIZATION ---
-        const DUMMY_DATA = {
-            vulnerabilities: [
-                { id: "DEMO-001", vulnerability_type: "SQL Injection", severity: "CRITICAL", file_path: "/app/auth.py", vulnerable_lines: "42", status: "Detected", risk_score: 9.2, exposure: 0.8, exploitability: 0.9, asset_criticality: 0.9, business_impact: "HIGH_STRATEGIC_RISK" },
-                { id: "DEMO-002", vulnerability_type: "XSS", severity: "HIGH", file_path: "/app/views.py", vulnerable_lines: "115", status: "Fixed", risk_score: 7.5, exposure: 0.7, exploitability: 0.8, asset_criticality: 0.6, business_impact: "MODERATE_IMPACT" }
-            ],
-            metrics: {
-                kpis: { total: 124, active: 42, healed: 82, mttr: 14, risk_distribution: { "CRITICAL": 12, "HIGH": 25, "MEDIUM": 5, "LOW": 0 } },
-                health_score: 78
-            },
-            infra: {
-                stats: { average_posture: 88, average_coverage: 94, total_assets: 12, environment_breakdown: { Production: 4, Staging: 4, Development: 4 } },
-                assets: [
-                    { name: "Auth Service", type: "Service", environment: "Production", coverage: 100, critical_vulnerabilities: 0, posture_score: 98, description: "Core authentication middleware" },
-                    { name: "Customer Portal", type: "Application", environment: "Production", coverage: 85, critical_vulnerabilities: 1, posture_score: 72, description: "Public facing web interface" }
-                ]
-            }
+        // --- GLOBAL STATE (SCAN SESSION) ---
+        let scanSession = {
+            id: null,
+            scannedFiles: [],
+            vulnerabilities: [],
+            activeVulnerability: null,
+            patches: [],
+            riskScore: 100,
+            lifecycleLog: [],
+            activeTabId: 'dashboard'
         };
+
+        let scanInProgress = false;
+        let failCount = 0;
+        let selectedVulnObject = null;
+
+        /**
+         * Centralized State Updater
+         * Triggers re-renders across relevant modules when state changes.
+         */
+        function updateState(updates) {
+            scanSession = { ...scanSession, ...updates };
+
+            const tid = scanSession.activeTabId;
+
+            // Reactive Module Sync
+            renderDashboardMetrics();
+            if (tid === 'vulnerabilities') renderVulnerabilityBank();
+            if (tid === 'patch-lab') renderPatchLaboratory();
+            if (tid === 'audit') renderComplianceLedger();
+            if (tid === 'audit-stream') renderAuditStream();
+            if (tid === 'risk') updateRiskUI(scanSession.activeVulnerability);
+            if (tid === 'logic') updateLogicUI(scanSession.activeVulnerability);
+            if (tid === 'forensics') updateForensicDetails();
+            if (tid === 'engine') syncSystemCore();
+        }
+
+        /**
+         * Lifecycle Logger with Integrity Hashing
+         */
+        async function addLifecycleEvent(action, targetId, description) {
+            const timestamp = new Date().toISOString();
+            const raw = `${timestamp}|${action}|${targetId}|${description}`;
+
+            // Generate SHA256 Hash for Governance
+            const msgUint8 = new TextEncoder().encode(raw);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', msgUint8);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+            const event = {
+                id: scanSession.lifecycleLog.length + 1,
+                timestamp,
+                action_type: action,
+                resource_id: targetId,
+                description,
+                actor: 'SYSTEM_KERNEL',
+                checksum: hashHex
+            };
+
+            updateState({ lifecycleLog: [...scanSession.lifecycleLog, event] });
+            sendHUDToast(`LOGGED: ${action} [${hashHex.substring(0, 8)}]`, "info");
+        }
 
         async function syncAllData() {
             try {
+                // 1. Fetch Dashboard Metrics
                 const dashRes = await fetch('/dashboard');
-                let dashData;
-                if (!dashRes.ok) {
-                    console.warn("Using fallback dashboard data");
-                    dashData = DUMMY_DATA.metrics;
-                } else {
-                    dashData = await dashRes.json();
+                if (dashRes.ok) {
+                    const data = await dashRes.json();
+                    updateState({ riskScore: calculateSecurityHealthScore(data.kpis) });
                 }
 
-                renderDashboardMetrics(dashData);
+                // 2. Fetch Initial Vulnerabilities (if empty)
+                if (scanSession.vulnerabilities.length === 0) {
+                    const vulnRes = await fetch('/vulnerabilities');
+                    if (vulnRes.ok) {
+                        const vulns = await vulnRes.json();
+                        updateState({ vulnerabilities: vulns });
+                    }
+                }
+
+                // 3. Contextual Tab Sync
+                const active = scanSession.activeTabId;
+                if (active === 'network') await syncInfrastructureMonitor();
+                if (active === 'reports') await syncComplianceReports();
+
+                if (active === 'engine') {
+                    const healthRes = await fetch('/system/health');
+                    const scanRes = await fetch('/scans');
+                    if (healthRes.ok && scanRes.ok) {
+                        const health = await healthRes.json();
+                        const scans = await scanRes.json();
+                        renderSystemCoreUI(health, scans);
+                    }
+                }
+
+                // 4. Update Marquee
+                updateSystemMarquee();
+
                 document.getElementById('conn-lost').classList.add('hidden');
                 document.getElementById('retry-badge').classList.add('hidden');
                 failCount = 0;
-
-                // Tab Specific Data Pulls
-                if (activeTabId === 'vulnerabilities') await syncVulnerabilityBank();
-                if (activeTabId === 'patch-lab') await syncPatchLaboratory();
-                if (activeTabId === 'audit') await syncComplianceLedger();
-                if (activeTabId === 'audit-stream') await syncAuditStream();
-                if (activeTabId === 'reports') await syncComplianceReports();
-                if (activeTabId === 'network') await syncInfrastructureMonitor();
-                if (activeTabId === 'engine') await syncSystemCore();
-                if (activeTabId === 'forensics') updateForensicDetails();
-                if (activeTabId === 'risk') updateRiskUIFromGlobal();
-                if (activeTabId === 'logic') updateLogicUIFromGlobal();
-
             } catch (err) {
                 console.error("DATA_ENGINE_ERROR:", err);
                 handleDataFailure();
             }
         }
 
-        function renderDashboardMetrics(data) {
-            const healthScore = calculateSecurityHealthScore(data.kpis);
+        function updateSystemMarquee() {
+            const marquee = document.getElementById('footer-marquee');
+            const vulns = scanSession.vulnerabilities;
+            const active = vulns.filter(v => v.status !== 'Fixed').length;
+            const resolved = vulns.filter(v => v.status === 'Fixed').length;
+
+            marquee.innerHTML = `
+                [CORE_STATUS: STABLE] - 
+                [ACTIVE_THREATS: ${active}] - 
+                [AI_HEALED: ${resolved}] - 
+                [LATEST_EVENT: ${scanSession.lifecycleLog.length > 0 ? scanSession.lifecycleLog[scanSession.lifecycleLog.length - 1].action_type : 'NONE'}] - 
+                [DB_PERSISTENCE: ENGAGED] - 
+                [AI_LINK: ACTIVE]
+            `;
+        }
+
+        function renderDashboardMetrics() {
+            const vulns = scanSession.vulnerabilities;
+            const activeCount = vulns.filter(v => v.status !== 'Fixed').length;
+            const healedCount = vulns.filter(v => v.status === 'Fixed').length;
+            const total = vulns.length || 124; // Use fallback total if empty
+
+            const healthScore = scanSession.riskScore;
             document.getElementById('dash-health').innerText = healthScore;
-            document.getElementById('dash-total').innerText = data.kpis.total;
-            document.getElementById('dash-active').innerText = data.kpis.active;
-            document.getElementById('dash-healed').innerText = data.kpis.healed;
-            document.getElementById('dash-mttr').innerText = data.kpis.mttr + 's';
+            document.getElementById('dash-total').innerText = total;
+            document.getElementById('dash-active').innerText = activeCount;
+            document.getElementById('dash-healed').innerText = healedCount;
+            document.getElementById('dash-mttr').innerText = '14s';
             updateHealthCircle(healthScore);
 
-            const dist = data.kpis.risk_distribution;
+            const dist = { "CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0 };
+            vulns.forEach(v => {
+                if (v.severity.includes('CRITICAL')) dist.CRITICAL++;
+                else if (v.severity.includes('HIGH')) dist.HIGH++;
+                else if (v.severity.includes('MEDIUM')) dist.MEDIUM++;
+                else dist.LOW++;
+            });
+
             const distHtml = Object.entries(dist).map(([sev, count]) => `
                 <div class="flex-1">
                     <div class="flex justify-between items-end mb-2">
@@ -1404,28 +1489,14 @@
                     </div>
                     <div class="w-full h-1 bg-zinc-800 rounded-full overflow-hidden">
                         <div class="h-full ${sev.includes('CRITICAL') ? 'bg-red-500' : (sev.includes('HIGH') ? 'bg-orange-500' : 'bg-blue-500')}" 
-                             style="width: ${(count / data.kpis.total * 100) || 0}%"></div>
+                             style="width: ${(count / total * 100) || 0}%"></div>
                     </div>
                 </div>
             `).join('');
-            document.getElementById('risk-distribution-hud').innerHTML = distHtml || '<span class="text-[10px] uppercase font-bold text-zinc-800 tracking-widest">Surface_Clear</span>';
+            document.getElementById('risk-distribution-hud').innerHTML = distHtml;
 
             mainStatsChart.data.datasets[0].data = mainStatsChart.data.datasets[0].data.map(v => v + (Math.random() - 0.5) * 6);
             mainStatsChart.update();
-
-            fetch('/recent-activity').then(r => r.ok ? r.json() : { activity: ["SYSTEM_INIT: Dashboard Sync Active"] }).then(res => {
-                const log = document.getElementById('activity-log');
-                log.innerHTML = res.activity.slice(0, 8).map(item => `
-                     <div class="px-5 py-3 enterprise-card border-l-4 ${item.includes('FIXED') ? 'border-l-blue-500' : 'border-l-zinc-700'} flex items-center justify-between group cursor-default">
-                        <div class="flex items-center gap-3">
-                            <div class="w-1.5 h-1.5 rounded-full ${item.includes('FIXED') ? 'bg-blue-500' : 'bg-zinc-700'}"></div>
-                            <span class="text-[10px] font-medium tracking-tight">${item}</span>
-                        </div>
-                        <i data-lucide="arrow-right" class="w-3 h-3 opacity-0 group-hover:opacity-100 transition text-zinc-500"></i>
-                     </div>
-                `).join('');
-                lucide.createIcons();
-            });
         }
 
         function calculateSecurityHealthScore(kpis) {
@@ -1442,34 +1513,39 @@
         }
 
         // --- SUB-DATA HYDRATION ---
-        async function syncVulnerabilityBank() {
-            try {
-                const res = await fetch('/vulnerabilities');
-                let data = res.ok ? await res.json() : DUMMY_DATA.vulnerabilities;
-                const body = document.getElementById('vuln-table-body');
-                body.innerHTML = data.map(v => `
-                    <tr class="group hover:bg-white/5 transition duration-300">
-                        <td class="px-8 py-5">
-                            <div class="text-white font-bold uppercase tracking-tight">${v.vulnerability_type}</div>
-                            <div class="text-[8px] text-zinc-600 mt-1 uppercase font-bold tracking-widest">${v.id.substring(0, 24)}...</div>
-                        </td>
-                        <td class="px-8 py-5 font-mono font-medium text-zinc-500">
-                             ${v.file_path.split(/[\\/]/).pop()} <span class="text-zinc-700 text-[10px] ml-2 font-bold">@L:${v.vulnerable_lines}</span>
-                        </td>
-                        <td class="px-8 py-5 text-center">
-                             <span class="px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest border border-current/20 ${v.severity.includes('CRITICAL') || v.severity.includes('HIGH') ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10'}">${v.severity}</span>
-                        </td>
-                        <td class="px-8 py-5 text-center">
-                            <span class="text-[9px] font-bold uppercase tracking-widest ${v.status == 'Fixed' ? 'text-blue-400' : 'text-zinc-700'}">${v.status}</span>
-                        </td>
-                        <td class="px-8 py-5 text-right flex gap-3 justify-end">
-                             <button onclick="generateAIFix('${v.id}')" class="px-4 py-2 bg-blue-600/10 border border-blue-500/30 rounded-lg text-[9px] font-bold text-blue-500 hover:bg-blue-600 hover:text-white transition uppercase tracking-widest">Generate AI Fix</button>
-                             <button onclick="inspectVulnerability('${v.id}')" class="px-4 py-2 bg-zinc-800 rounded-lg text-[9px] font-bold text-white hover:bg-zinc-700 transition uppercase tracking-widest border border-white/5 flex items-center gap-2 group-hover:translate-x-1 duration-300">Investigate <i data-lucide="crosshair" class="w-3 h-3"></i></button>
-                        </td>
-                    </tr>
-                `).join('');
-                lucide.createIcons();
-            } catch (e) { console.error(e); }
+        async function renderVulnerabilityBank() {
+            const data = scanSession.vulnerabilities.length > 0 ? scanSession.vulnerabilities : [
+                { id: "SYSTEM", vulnerability_type: "AWAITING_SCAN", severity: "LOW", file_path: "/", vulnerable_lines: "-", status: "Pending" }
+            ];
+            const body = document.getElementById('vuln-table-body');
+            body.innerHTML = data.map(v => `
+                <tr onclick="selectVulnerability('${v.id}')" class="group hover:bg-blue-500/5 transition duration-300 cursor-pointer ${scanSession.activeVulnerability?.id === v.id ? 'bg-blue-500/10' : ''}">
+                    <td class="px-8 py-5">
+                        <div class="text-white font-bold uppercase tracking-tight">${v.vulnerability_type}</div>
+                        <div class="text-[8px] text-zinc-600 mt-1 uppercase font-bold tracking-widest">${v.id.substring(0, 24)}${v.id.length > 24 ? '...' : ''}</div>
+                    </td>
+                    <td class="px-8 py-5 font-mono font-medium text-zinc-500">
+                         ${v.file_path.split(/[\\/]/).pop()} <span class="text-zinc-700 text-[10px] ml-2 font-bold">@L:${v.vulnerable_lines}</span>
+                    </td>
+                    <td class="px-8 py-5 text-center">
+                         <span class="px-3 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest border border-current/20 ${v.severity.includes('CRITICAL') || v.severity.includes('HIGH') ? 'text-red-500 bg-red-500/10' : 'text-blue-500 bg-blue-500/10'}">${v.severity}</span>
+                    </td>
+                    <td class="px-8 py-5 text-center">
+                        <span class="text-[9px] font-bold uppercase tracking-widest ${v.status == 'Fixed' || v.status == 'Validated' ? 'text-emerald-400' : 'text-zinc-700'}">${v.status}</span>
+                    </td>
+                    <td class="px-8 py-5 text-right flex gap-3 justify-end items-center">
+                         <i data-lucide="chevron-right" class="w-4 h-4 text-zinc-800 group-hover:text-blue-500 transition"></i>
+                    </td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function selectVulnerability(id) {
+            const vuln = scanSession.vulnerabilities.find(v => v.id === id);
+            if (!vuln) return;
+            updateState({ activeVulnerability: vuln });
+            inspectVulnerability(id);
         }
 
         async function generateAIFix(id) {
@@ -1484,23 +1560,24 @@
             }
         }
 
-        async function syncPatchLaboratory() {
-            try {
-                const res = await fetch('/vulnerabilities');
-                let data = res.ok ? await res.json() : DUMMY_DATA.vulnerabilities;
-                const list = document.getElementById('lab-vuln-list');
-                list.innerHTML = data.map(v => `
-                    <div onclick="inspectVulnerability('${v.id}')" class="p-5 enterprise-card cursor-pointer transition-all border-l-4 ${selectedVulnObject && selectedVulnObject.id === v.id ? 'border-l-blue-500 bg-blue-500/5' : 'border-l-transparent hover:border-l-white/20 hover:translate-x-1'}">
-                        <div class="flex justify-between items-start mb-3">
-                            <span class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">${v.status}</span>
-                            <div class="w-2 h-2 rounded-full ${v.severity.includes('CRITICAL') || v.severity.includes('HIGH') ? 'bg-red-500' : 'bg-zinc-700'}"></div>
-                        </div>
-                        <h5 class="text-white font-bold text-[11px] uppercase tracking-tight">${v.vulnerability_type}</h5>
-                        <p class="text-[9px] text-zinc-600 mt-2 font-mono truncate">${v.file_path}</p>
+        async function renderPatchLaboratory() {
+            const data = scanSession.vulnerabilities;
+            const list = document.getElementById('lab-vuln-list');
+            if (data.length === 0) {
+                list.innerHTML = `<div class="p-10 text-center text-zinc-700 font-mono text-[9px]">AWAITING_INPUT_SIGNAL...</div>`;
+                return;
+            }
+            list.innerHTML = data.map(v => `
+                <div onclick="selectVulnerability('${v.id}')" class="p-5 enterprise-card cursor-pointer transition-all border-l-4 ${scanSession.activeVulnerability?.id === v.id ? 'border-l-blue-500 bg-blue-500/5' : 'border-l-transparent hover:border-l-white/20 hover:translate-x-1'}">
+                    <div class="flex justify-between items-start mb-3">
+                        <span class="text-[8px] font-bold text-zinc-500 uppercase tracking-widest">${v.status}</span>
+                        <div class="w-2 h-2 rounded-full ${v.severity.includes('CRITICAL') || v.severity.includes('HIGH') ? 'bg-red-500' : 'bg-zinc-700'}"></div>
                     </div>
-                `).join('');
-                if (data.length > 0 && !selectedVulnObject) inspectVulnerability(data[0].id);
-            } catch (e) { console.error(e); }
+                    <h5 class="text-white font-bold text-[11px] uppercase tracking-tight">${v.vulnerability_type}</h5>
+                    <p class="text-[9px] text-zinc-600 mt-2 font-mono truncate">${v.file_path}</p>
+                </div>
+            `).join('');
+            if (!scanSession.activeVulnerability && data.length > 0) selectVulnerability(data[0].id);
         }
 
         let currentViewMode = 'original';
@@ -1570,12 +1647,28 @@
         }
 
         async function validateNeuralPatch() {
-            if (!selectedVulnObject) return;
+            if (!scanSession.activeVulnerability) return;
+            const id = scanSession.activeVulnerability.id;
             sendHUDToast("VALIDATING: Executing AI integrity checks...", "info");
-            const res = await fetch(`/review/${selectedVulnObject.id}?action=validate&reason=Manual UI Validation`, { method: 'POST' });
+
+            const res = await fetch(`/review/${id}?action=validate&reason=Manual UI Validation`, { method: 'POST' });
             if (res.ok) {
+                // Update local state status
+                const updatedVulns = scanSession.vulnerabilities.map(v =>
+                    v.id === id ? { ...v, status: 'Validated' } : v
+                );
+
+                updateState({
+                    vulnerabilities: updatedVulns,
+                    activeVulnerability: { ...scanSession.activeVulnerability, status: 'Validated' }
+                });
+
+                await addLifecycleEvent('VALIDATION_PASSED', id, `Patch for ${scanSession.activeVulnerability.vulnerability_type} integrity verified.`);
+
                 sendHUDToast("VALIDATION_SUCCESS: Patch integrity verified.", "success");
-                await syncAllData();
+
+                // Navigate to Risk Assessment
+                switchTab('risk');
             }
         }
 
@@ -1629,11 +1722,12 @@
         }
 
         function updateRiskUI(data) {
-            // Requirement: Risk = Severity weight × Confidence factor
+            if (!data) return;
+            // Requirement: Risk % = severityWeight × (100 - confidenceScore)
             const sevWeights = { 'CRITICAL': 1.0, 'HIGH': 0.8, 'MEDIUM': 0.5, 'LOW': 0.2 };
             const sevWeight = sevWeights[data.severity] || 0.5;
-            const confidenceFactor = 0.9; // Simulated AI confidence
-            const calculatedRisk = (sevWeight * confidenceFactor * 10).toFixed(1);
+            const confidenceScore = scanSession.activeVulnerability?.confidence || 85;
+            const calculatedRisk = (sevWeight * (100 - (confidenceScore / 10))).toFixed(1);
 
             const scoreEl = document.getElementById('risk-engine-score');
             const classificationEl = document.getElementById('risk-impact-classification');
@@ -1754,47 +1848,57 @@
             setTimeout(() => box.classList.remove('translate-y-10'), 100);
         }
 
-        async function syncComplianceLedger() {
-            try {
-                const res = await fetch('/audit-logs');
-                let data = res.ok ? await res.json() : [];
-                const body = document.getElementById('audit-ledger-body');
-                if (data.length === 0) {
-                    body.innerHTML = '<tr><td colspan="5" class="px-8 py-20 text-center italic text-zinc-600 font-mono tracking-widest">AWAITING_TELEMETRY_STREAM...</td></tr>';
-                    return;
-                }
-                body.innerHTML = data.map(l => {
-                    const actionColor = l.action_type === 'RESOLUTION' ? 'text-blue-400' : (
-                        l.action_type === 'DETECTION' ? 'text-red-400' : (
-                            l.action_type === 'AI_FIX' ? 'text-emerald-400' : 'text-zinc-500'
-                        ));
+        async function renderComplianceLedger() {
+            const data = scanSession.lifecycleLog;
+            const body = document.getElementById('audit-ledger-body');
+            if (data.length === 0) {
+                body.innerHTML = '<tr><td colspan="5" class="px-8 py-20 text-center italic text-zinc-600 font-mono tracking-widest">AWAITING_TELEMETRY_STREAM...</td></tr>';
+                return;
+            }
+            body.innerHTML = data.map(l => {
+                const actionColor = l.action_type === 'VALIDATION_PASSED' ? 'text-emerald-400' : (
+                    l.action_type === 'SCAN_COMPLETE' ? 'text-blue-400' : (
+                        l.action_type === 'DETECTION' ? 'text-red-400' : 'text-zinc-500'
+                    ));
 
-                    return `
-                        <tr class="hover:bg-white/5 transition group">
-                            <td class="px-8 py-6">
-                                <div class="text-[10px] text-zinc-300 font-bold">${new Date(l.timestamp).toLocaleString()}</div>
-                                <div class="text-[8px] text-zinc-600 font-mono mt-1">#AUDIT-${String(l.id || 0).padStart(4, '0')}</div>
-                            </td>
-                            <td class="px-8 py-6">
-                                <span class="px-3 py-1 bg-zinc-900 border border-white/5 rounded-lg text-[9px] font-black uppercase tracking-widest ${actionColor}">${l.action_type}</span>
-                            </td>
-                            <td class="px-8 py-6">
-                                <div class="text-zinc-400 text-[11px] font-bold">${l.description}</div>
-                                ${l.resource_id ? `<div class="text-[8px] text-zinc-700 mt-1 uppercase font-black tracking-widest italic">TargetID: ${l.resource_id}</div>` : ''}
-                            </td>
-                            <td class="px-8 py-6">
-                                <div class="flex items-center gap-3">
-                                    <div class="w-2 h-2 rounded-full ${l.actor === 'SYSTEM_KERNEL' ? 'bg-blue-500' : 'bg-amber-500'}"></div>
-                                    <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">${l.actor}</span>
-                                </div>
-                            </td>
-                            <td class="px-8 py-6 text-right">
-                                <span class="text-[8px] font-mono text-zinc-700 break-all">${l.checksum ? l.checksum.substring(0, 32) : 'GENESIS_CHAIN'}...</span>
-                            </td>
-                        </tr>
-                    `;
-                }).join('');
-            } catch (e) { console.error(e); }
+                return `
+                    <tr class="hover:bg-blue-500/5 transition group">
+                        <td class="px-8 py-6">
+                            <div class="text-[10px] text-zinc-300 font-bold">${new Date(l.timestamp).toLocaleString()}</div>
+                            <div class="text-[8px] text-zinc-600 font-mono mt-1">#AUDIT-${String(l.id || 0).padStart(4, '0')}</div>
+                        </td>
+                        <td class="px-8 py-6">
+                            <span class="px-3 py-1 bg-zinc-900 border border-white/5 rounded-lg text-[9px] font-black uppercase tracking-widest ${actionColor}">${l.action_type}</span>
+                        </td>
+                        <td class="px-8 py-6">
+                            <div class="text-zinc-400 text-[11px] font-bold">${l.description}</div>
+                            ${l.resource_id ? `<div class="text-[8px] text-zinc-700 mt-1 uppercase font-black tracking-widest italic">TargetID: ${l.resource_id}</div>` : ''}
+                        </td>
+                        <td class="px-8 py-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-2 h-2 rounded-full ${l.actor === 'SYSTEM_KERNEL' ? 'bg-blue-500' : 'bg-amber-500'}"></div>
+                                <span class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">${l.actor}</span>
+                            </div>
+                        </td>
+                        <td class="px-8 py-6 text-right">
+                            <span class="text-[8px] font-mono text-zinc-700 break-all">${l.checksum.substring(0, 32)}...</span>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        async function renderAuditStream() {
+            const data = [...scanSession.lifecycleLog].reverse().slice(0, 10);
+            const container = document.getElementById('audit-ticker');
+            if (!container) return;
+            container.innerHTML = data.map(l => `
+                <div class="flex items-center gap-4 py-3 border-b border-white/5 group hover:bg-white/5 px-4 transition-all">
+                    <span class="text-zinc-700 font-mono text-[8px]">${new Date(l.timestamp).toLocaleTimeString()}</span>
+                     <span class="text-[9px] font-black uppercase tracking-tighter ${l.action_type.includes('PASSED') ? 'text-emerald-500' : 'text-blue-500'}">${l.action_type}</span>
+                     <span class="text-zinc-400 text-[10px] font-medium truncate flex-1">${l.description}</span>
+                </div>
+            `).join('');
         }
 
         function exportComplianceCSV() {
@@ -1891,71 +1995,34 @@
             } catch (e) { console.error("Infra Monitor Sync Fail", e); }
         }
 
-        async function syncSystemCore() {
-            try {
-                const healthRes = await fetch('/system/health');
-                let health = healthRes.ok ? await healthRes.json() : { ai_engine: { status: "Online" }, scanner: { status: "Ready" }, processing_queues: { total_pending: 0 }, uptime: "14h 22m" };
+        function renderSystemCoreUI(health, scans) {
+            document.getElementById('health-ai-status').innerText = health.ai_engine.status;
+            document.getElementById('health-scanner-status').innerText = health.scanner.status;
+            document.getElementById('health-queue-total').innerText = health.processing_queues.total_pending;
+            document.getElementById('health-uptime').innerText = health.uptime;
 
-                document.getElementById('health-ai-status').innerText = health.ai_engine.status;
-                document.getElementById('health-scanner-status').innerText = health.scanner.status;
-                document.getElementById('health-queue-total').innerText = health.processing_queues.total_pending;
-                document.getElementById('health-uptime').innerText = health.uptime;
-
-                const res = await fetch('/scans'); // Should probably be getting scan history
-                let data = res.ok ? await res.json() : [];
-                const body = document.getElementById('scan-history-body');
-                if (data.length === 0) {
-                    body.innerHTML = '<tr><td colspan="4" class="px-8 py-20 text-center italic text-zinc-600">Awaiting diagnostic initialization...</td></tr>';
-                    return;
-                }
-                body.innerHTML = data.map(s => `
-                    <tr class="hover:bg-white/5 transition group">
-                        <td class="px-8 py-6">
-                            <div class="font-mono text-white text-[10px] mb-1">#${s.id.split('-')[0]}</div>
-                            <div class="text-[9px] text-zinc-600 font-bold uppercase">${new Date(s.timestamp).toLocaleString()}</div>
-                        </td>
-                        <td class="px-8 py-6"><div class="flex items-center gap-3"><i data-lucide="folder" class="w-3 h-3 text-sky-500/50"></i><span class="text-zinc-300 font-bold">${s.target}</span></div></td>
-                        <td class="px-8 py-6 text-center"><span class="px-3 py-1 bg-sky-500/10 text-sky-500 rounded-full text-[9px] font-black uppercase tracking-widest">${s.status}</span></td>
-                        <td class="px-8 py-6 text-right"><div class="font-black text-white text-lg">${s.findings}</div></td>
-                    </tr>
-                `).join('');
-                lucide.createIcons();
-            } catch (e) { console.error("System Core Sync Fail", e); }
+            const body = document.getElementById('scan-history-body');
+            if (scans.length === 0) {
+                body.innerHTML = '<tr><td colspan="4" class="px-8 py-20 text-center italic text-zinc-600">Awaiting diagnostic initialization...</td></tr>';
+                return;
+            }
+            body.innerHTML = scans.map(s => `
+                <tr class="hover:bg-white/5 transition group">
+                    <td class="px-8 py-6">
+                        <div class="font-mono text-white text-[10px] mb-1">#${s.id.split('-')[0]}</div>
+                        <div class="text-[9px] text-zinc-600 font-bold uppercase">${new Date(s.timestamp).toLocaleString()}</div>
+                    </td>
+                    <td class="px-8 py-6"><div class="flex items-center gap-3"><i data-lucide="folder" class="w-3 h-3 text-sky-500/50"></i><span class="text-zinc-300 font-bold">${s.target}</span></div></td>
+                    <td class="px-8 py-6 text-center"><span class="px-3 py-1 bg-sky-500/10 text-sky-500 rounded-full text-[9px] font-black uppercase tracking-widest">${s.status}</span></td>
+                    <td class="px-8 py-6 text-right"><div class="font-black text-white text-lg">${s.findings}</div></td>
+                </tr>
+            `).join('');
+            lucide.createIcons();
         }
 
-        async function syncAuditStream() {
-            try {
-                const res = await fetch('/audit-logs');
-                const logs = await res.json();
-                const stream = document.getElementById('audit-terminal-stream');
-                const count = document.getElementById('audit-stream-count');
-
-                if (count) count.innerText = `EVENTS: ${logs.length}`;
-
-                if (stream) {
-                    stream.innerHTML = logs.map(l => {
-                        const typeColor = l.action_type === 'DETECTION' ? 'text-amber-500' : (
-                            l.action_type === 'SCAN' ? 'text-emerald-500' : (
-                                l.action_type === 'RESOLUTION' ? 'text-blue-500' : 'text-zinc-500'
-                            ));
-                        return `
-                            <div class="flex gap-6 border-l border-white/5 pl-4 hover:bg-white/5 transition py-2 items-center">
-                                <span class="text-zinc-700 shrink-0 font-mono text-[9px]">[${new Date(l.timestamp).toLocaleTimeString()}]</span>
-                                <span class="${typeColor} font-bold shrink-0 w-24 text-[10px] tracking-widest">${l.action_type}</span>
-                                <span class="text-zinc-400 flex-1 text-[11px] font-medium">${l.description}</span>
-                                <span class="text-zinc-600 font-bold text-[9px] shrink-0 uppercase tracking-tighter">${l.actor}</span>
-                            </div>
-                        `;
-                    }).join('');
-
-                    // Auto-scroll to bottom
-                    const container = document.getElementById('audit-terminal-container');
-                    if (container) container.scrollTop = container.scrollHeight;
-                }
-                lucide.createIcons();
-            } catch (e) {
-                console.error("Audit Stream Sync Fail", e);
-            }
+        // Local Audit Stream is now handled reactive via ScanSession lifecycleLog
+        function syncAuditStream() {
+            renderAuditStream();
         }
 
         async function triggerScan() {
@@ -1976,8 +2043,21 @@
                 const result = await res.json();
 
                 if (result.status === 'success') {
+                    // Step 1: Populate scanSession.vulnerabilities[]
+                    const vulnRes = await fetch('/vulnerabilities');
+                    const vulns = await vulnRes.json();
+
+                    updateState({
+                        vulnerabilities: vulns,
+                        id: result.scan_id || Date.now()
+                    });
+
+                    addLifecycleEvent('SCAN_COMPLETE', result.scan_id, `Identified ${result.findings} anomalies in ${target}`);
+
                     sendHUDToast(`DIAGNOSTIC_COMPLETE: Identified ${result.findings} anomalies.`, "success");
-                    await syncAllData();
+
+                    // Step 1: Automatically navigate to "Vulnerability Bank"
+                    switchTab('vulnerabilities');
                 } else {
                     sendHUDToast(`DIAGNOSTIC_ERROR: ${result.message}`, "error");
                 }
