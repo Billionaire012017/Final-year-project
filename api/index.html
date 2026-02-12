@@ -99,14 +99,17 @@
     <script>
         const API_URL = "http://localhost:8000";
 
-        const store = {
-            scanSession: {},
+        // Centralized Pipeline State
+        const pipelineState = {
+            scanId: null,
             vulnerabilities: [],
-            activeVulnId: null,
-            systemHealth: {},
+            metrics: {},
+            systemCore: {},
             complianceData: {},
             feedbackData: {},
+            activeVulnId: null,
 
+            // Fetch all data from backend
             async fetchAll() {
                 try {
                     const [dash, vulns, sys, comp, feed] = await Promise.all([
@@ -117,14 +120,82 @@
                         fetch(`${API_URL}/feedback`).then(r => r.json())
                     ]);
 
-                    this.scanSession = dash;
+                    this.metrics = dash;
                     this.vulnerabilities = vulns;
-                    this.systemHealth = sys;
+                    this.systemCore = sys;
                     this.complianceData = comp;
                     this.feedbackData = feed;
 
                     app.render();
-                } catch (e) { console.error("Sync Error", e); }
+                } catch (e) { console.error("Pipeline Sync Error", e); }
+            },
+
+            // Action: Execute Scan
+            async executeScan() {
+                console.log("[ACTION] Execute Scan");
+                try {
+                    const res = await fetch(`${API_URL}/scan`, { method: 'POST' });
+                    const data = await res.json();
+                    console.log("Scan Results:", data);
+
+                    this.scanId = data.scan_id;
+                    this.vulnerabilities = data.vulnerabilities || [];
+
+                    // Refresh all dependent tabs
+                    await this.fetchAll();
+                    router.go('vulnerabilities');
+                } catch (e) {
+                    console.error("Scan Failed", e);
+                    alert("Scan failed. Check console.");
+                }
+            },
+
+            // Action: Generate Patch
+            async generatePatch(id) {
+                console.log(`[ACTION] Generate Patch for ${id}`);
+                try {
+                    await fetch(`${API_URL}/patch/${id}`, { method: 'POST' });
+
+                    // Update vulnerability status locally
+                    const vuln = this.vulnerabilities.find(v => v.id === id);
+                    if (vuln) vuln.status = "PATCHED";
+
+                    // Refresh system core (accuracy changes) and compliance
+                    await Promise.all([
+                        fetch(`${API_URL}/system-core`).then(r => r.json()).then(d => this.systemCore = d),
+                        fetch(`${API_URL}/compliance`).then(r => r.json()).then(d => this.complianceData = d),
+                        fetch(`${API_URL}/vulnerabilities`).then(r => r.json()).then(d => this.vulnerabilities = d)
+                    ]);
+
+                    app.render();
+                    router.go('patch-lab');
+                    this.activeVulnId = id;
+                } catch (e) {
+                    console.error("Patch Failed", e);
+                }
+            },
+
+            // Action: Validate Patch
+            async validatePatch(id) {
+                console.log(`[ACTION] Validate Patch for ${id}`);
+                try {
+                    await fetch(`${API_URL}/validate/${id}`, { method: 'POST' });
+
+                    // Update vulnerability status locally
+                    const vuln = this.vulnerabilities.find(v => v.id === id);
+                    if (vuln) {
+                        vuln.status = "VALIDATED";
+                        vuln.risk_score = 0;
+                    }
+
+                    // Refresh dashboard (risk score), system core, compliance, decision tree
+                    await this.fetchAll();
+
+                    alert("Patch validated successfully! Risk score reduced.");
+                    router.go('decision-tree');
+                } catch (e) {
+                    console.error("Validation Failed", e);
+                }
             }
         };
 
@@ -152,39 +223,21 @@
         const app = {
             init() {
                 router.go('dashboard');
-                this.executeScan(); // Auto-scan on load for demo
-                setInterval(() => store.fetchAll(), 2000); // core loop
+                pipelineState.executeScan(); // Auto-scan on load
+                setInterval(() => pipelineState.fetchAll(), 2000); // Continuous sync
             },
 
             async executeScan() {
                 document.getElementById('page-title').innerText = "Scanning filesystem...";
-                try {
-                    const res = await fetch(`${API_URL}/scan`, { method: 'POST' });
-                    const data = await res.json();
-                    console.log("Scan Results:", data);
-
-                    if (data.vulnerabilities) {
-                        store.vulnerabilities = data.vulnerabilities;
-                    }
-
-                    await store.fetchAll();
-                    router.go('vulnerabilities');
-                } catch (e) {
-                    console.error("Scan Failed", e);
-                    alert("Scan failed to execute. Check console.");
-                }
+                await pipelineState.executeScan();
             },
 
             async generatePatch(id) {
-                await fetch(`${API_URL}/patch/${id}`, { method: 'POST' });
-                store.activeVulnId = id;
-                await store.fetchAll();
-                router.go('patch-lab');
+                await pipelineState.generatePatch(id);
             },
 
             async validatePatch(id) {
-                await fetch(`${API_URL}/validate/${id}`, { method: 'POST' });
-                await store.fetchAll();
+                await pipelineState.validatePatch(id);
             },
 
             async submitFeedback(id) {
@@ -193,10 +246,10 @@
                     await fetch(`${API_URL}/feedback/${id}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ rating: 5, comment: comment }) // Default 5 star for demo
+                        body: JSON.stringify({ rating: 5, comment: comment })
                     });
                     alert("Feedback Submitted!");
-                    await store.fetchAll();
+                    await pipelineState.fetchAll();
                 }
             },
 
@@ -215,7 +268,7 @@
             },
 
             renderDashboard(el) {
-                const s = store.scanSession;
+                const s = pipelineState.metrics;
                 el.innerHTML = `
                 <div class="grid grid-cols-4 gap-6 mb-8">
                     <div class="glass p-6 rounded-xl">
@@ -243,7 +296,7 @@
             },
 
             renderVulns(el) {
-                const rows = store.vulnerabilities.map(v => `
+                const rows = pipelineState.vulnerabilities.map(v => `
                 <tr class="border-b border-slate-800 hover:bg-slate-900/50 transition">
                     <td class="p-4 font-mono text-xs text-blue-400">${v.id}</td>
                     <td class="p-4 text-white font-medium">${v.vulnerability_type}</td>
@@ -254,7 +307,7 @@
                     </td>
                     <td class="p-4">
                         ${v.status === 'DETECTED' ? `<button onclick="app.generatePatch('${v.id}')" class="bg-blue-600 px-3 py-1 rounded text-white text-xs font-bold">Generate Patch</button>` : ''}
-                        ${v.status === 'PATCHED' ? `<button onclick="store.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-amber-600 px-3 py-1 rounded text-white text-xs font-bold">Review Fix</button>` : ''}
+                        ${v.status === 'PATCHED' ? `<button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-amber-600 px-3 py-1 rounded text-white text-xs font-bold">Review Fix</button>` : ''}
                         ${v.status === 'VALIDATED' ? `<button onclick="app.submitFeedback('${v.id}')" class="bg-slate-700 px-3 py-1 rounded text-white text-xs font-bold">Feedback</button>` : ''}
                     </td>
                 </tr>
@@ -280,7 +333,7 @@
             },
 
             renderPatchLab(el) {
-                const v = store.vulnerabilities.find(i => i.id === store.activeVulnId);
+                const v = pipelineState.vulnerabilities.find(i => i.id === pipelineState.activeVulnId);
                 if (!v) { el.innerHTML = `<div class="p-8 text-center text-slate-500">Select a vulnerability from registry first.</div>`; return; }
 
                 el.innerHTML = `
@@ -302,27 +355,44 @@
             },
 
             renderTree(el) {
-                const v = store.vulnerabilities.find(i => i.id === store.activeVulnId);
-                const status = v ? v.status : 'IDLE';
+                // Calculate aggregate pipeline status from all vulnerabilities
+                const vulns = pipelineState.vulnerabilities;
+                const detected = vulns.filter(v => v.status === 'DETECTED').length;
+                const patched = vulns.filter(v => v.status === 'PATCHED').length;
+                const validated = vulns.filter(v => v.status === 'VALIDATED').length;
 
-                const steps = ['DETECTED', 'PATCHED', 'VALIDATED', 'FIXED'];
-                const html = steps.map((s, i) => {
-                    const active = s === status || (s === 'FIXED' && status === 'VALIDATED');
+                const steps = [
+                    { name: 'DETECTED', count: detected, color: 'red' },
+                    { name: 'PATCHED', count: patched, color: 'amber' },
+                    { name: 'VALIDATED', count: validated, color: 'emerald' },
+                    { name: 'FIXED', count: validated, color: 'blue' }
+                ];
+
+                const html = steps.map((step, i) => {
+                    const active = step.count > 0;
                     return `
-                    <div class="flex flex-col items-center">
-                        <div class="w-16 h-16 rounded-full flex items-center justify-center border-4 ${active ? 'border-blue-500 bg-blue-500/20 text-white' : 'border-slate-800 bg-slate-900 text-slate-700'} font-bold transition-all duration-500">
-                             ${i + 1}
+                <div class="flex flex-col items-center">
+                    <div class="w-24 h-24 rounded-full flex items-center justify-center border-4 ${active
+                            ? `border-${step.color}-500 bg-${step.color}-500/20 text-white`
+                            : 'border-slate-800 bg-slate-900 text-slate-700'
+                        } font-bold transition-all duration-500">
+                        <div class="text-center">
+                            <div class="text-3xl">${step.count}</div>
+                            <div class="text-xs text-slate-500">${step.name}</div>
                         </div>
-                        <div class="mt-4 font-bold text-xs tracking-widest ${active ? 'text-blue-400' : 'text-slate-600'}">${s}</div>
                     </div>
-                `
-                }).join('<div class="h-1 w-24 bg-slate-800 mt-[30px]"></div>');
+                    <div class="mt-4 font-bold text-sm tracking-widest ${active ? `text-${step.color}-400` : 'text-slate-600'
+                        }">${step.name}</div>
+                </div>
+                ${i < steps.length - 1 ? '<div class="flex-1 h-1 bg-slate-800 mx-4 self-center"></div>' : ''}
+            `;
+                }).join('');
 
                 el.innerHTML = `<div class="flex flex-col items-center justify-center h-full"><div class="flex">${html}</div></div>`;
             },
 
             renderSystem(el) {
-                const s = store.systemHealth;
+                const s = pipelineState.systemCore;
                 const accuracy = s.engine_accuracy || 0;
                 const riskScore = s.current_risk_score || 0;
 
@@ -373,7 +443,7 @@
             },
 
             renderCompliance(el) {
-                const c = store.complianceData;
+                const c = pipelineState.complianceData;
 
                 // Build breakdown chart
                 const breakdownHTML = Object.entries(c.fix_breakdown_by_type || {}).map(([type, count]) => `
@@ -443,7 +513,7 @@
             },
 
             renderFeedback(el) {
-                const f = store.feedbackData;
+                const f = pipelineState.feedbackData;
                 const comments = (f.comments || []).map(c => `
                 <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-lg mb-3">
                     <div class="flex justify-between items-center mb-2">
