@@ -6,3 +6,5 @@ jinja2
 fastapi
 uvicorn
 python-multipart
+regex
+requests
