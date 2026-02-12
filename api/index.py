@@ -286,40 +286,73 @@ def get_dashboard_metrics():
 @app.get("/system-core")
 def get_system_core():
     db = SessionLocal()
+    
+    # Count scans
+    total_scans = db.query(ScanSession).count()
+    
+    # Count vulnerabilities by status
     total_vulns = db.query(Vulnerability).count()
     validated = db.query(Vulnerability).filter(Vulnerability.status == "VALIDATED").count()
     patched = db.query(Vulnerability).filter(Vulnerability.status == "PATCHED").count()
+    detected = db.query(Vulnerability).filter(Vulnerability.status == "DETECTED").count()
     
+    # Calculate accuracy (validated / total patched)
     accuracy = 0
     if (validated + patched) > 0:
         accuracy = (validated / (validated + patched)) * 100
-        
+    
+    # Get current risk score from latest session
+    latest_session = db.query(ScanSession).order_by(ScanSession.created_at.desc()).first()
+    current_risk = latest_session.overall_risk_score if latest_session else 0
+    
     db.close()
     return {
-        "total_scans": db.query(ScanSession).count(),
-        "total_detected": total_vulns,
-        "total_patched": patched,
-        "total_validated": validated,
+        "total_scans": total_scans,
+        "total_vulnerabilities": total_vulns,
+        "patched_count": patched,
+        "validated_count": validated,
         "engine_accuracy": round(accuracy, 1),
-        "health_status": "OPTIMAL" if accuracy > 80 or total_vulns == 0 else "DEGRADED"
+        "current_risk_score": round(current_risk, 1)
     }
 
 @app.get("/compliance")
 def get_compliance():
     db = SessionLocal()
-    # Group by types
+    
+    # Get all vulnerabilities
     vulns = db.query(Vulnerability).all()
-    breakdown = {}
+    
+    # Count open vs closed
+    open_count = sum(1 for v in vulns if v.status in ["DETECTED", "PATCHED"])
+    closed_count = sum(1 for v in vulns if v.status == "VALIDATED")
+    
+    # Group by vulnerability type
+    fix_breakdown_by_type = {}
     for v in vulns:
-        breakdown[v.vulnerability_type] = breakdown.get(v.vulnerability_type, 0) + 1
-        
-    validated_history = db.query(Vulnerability).filter(Vulnerability.status == "VALIDATED").order_by(Vulnerability.created_at.desc()).limit(10).all()
+        if v.status == "VALIDATED":
+            vtype = v.vulnerability_type
+            fix_breakdown_by_type[vtype] = fix_breakdown_by_type.get(vtype, 0) + 1
+    
+    # Get fix history (last 10 validated vulnerabilities)
+    validated_vulns = db.query(Vulnerability).filter(
+        Vulnerability.status == "VALIDATED"
+    ).order_by(Vulnerability.created_at.desc()).limit(10).all()
+    
+    history = []
+    for v in validated_vulns:
+        history.append({
+            "date": v.created_at.strftime("%Y-%m-%d %H:%M") if v.created_at else "Unknown",
+            "vulnerability_type": v.vulnerability_type,
+            "file_name": v.file_name
+        })
     
     db.close()
     return {
-        "total_fixed": sum(1 for v in vulns if v.status == "VALIDATED"),
-        "breakdown": breakdown,
-        "history": [{"id": v.id, "type": v.vulnerability_type, "date": v.created_at} for v in validated_history]
+        "total_fixed": closed_count,
+        "fix_breakdown_by_type": fix_breakdown_by_type,
+        "open_count": open_count,
+        "closed_count": closed_count,
+        "history": history
     }
 
 @app.post("/feedback/{id}")
@@ -334,16 +367,24 @@ def submit_feedback(id: str, feedback: FeedbackRequest):
 @app.get("/feedback")
 def get_feedback():
     db = SessionLocal()
-    feedbacks = db.query(Feedback).all()
+    feedbacks = db.query(Feedback).order_by(Feedback.created_at.desc()).all()
     count = len(feedbacks)
     avg_rating = sum(f.rating for f in feedbacks) / count if count > 0 else 0
     
-    comments = [{"vulnerability": f.vulnerability_id, "rating": f.rating, "comment": f.comment} for f in feedbacks[-5:]]
+    comments = []
+    for f in feedbacks:
+        comments.append({
+            "vulnerability_id": f.vulnerability_id,
+            "rating": f.rating,
+            "comment": f.comment,
+            "created_at": f.created_at.strftime("%Y-%m-%d %H:%M") if f.created_at else "Unknown"
+        })
+    
     db.close()
     return {
-        "total_feedback": count,
         "average_rating": round(avg_rating, 1),
-        "recent_comments": comments
+        "total_feedback": count,
+        "comments": comments
     }
 
 if __name__ == "__main__":
