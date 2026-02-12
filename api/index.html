@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SecLAB AI Remediation Engine</title>
+    <title>SecLAB Centralized Manager</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
@@ -12,452 +12,385 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #09090b;
-            color: #e4e4e7;
+            background-color: #0f172a;
+            color: #f8fafc;
         }
 
         .font-mono {
             font-family: 'JetBrains Mono', monospace;
         }
 
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            backdrop-filter: blur(12px);
+        .glass {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .nav-active {
-            background: rgba(59, 130, 246, 0.1);
-            border-left: 3px solid #3b82f6;
-            color: #60a5fa;
-        }
-
-        .status-badge {
-            @apply px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider;
+        .nav-item.active {
+            background: #3b82f6;
+            color: white;
         }
     </style>
 </head>
 
-<body class="h-screen flex overflow-hidden">
+<body class="h-screen flex text-sm overflow-hidden">
 
     <!-- SIDEBAR -->
-    <aside class="w-64 border-r border-white/10 bg-black/40 flex flex-col">
-        <div class="p-6 border-b border-white/5">
-            <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-                <i data-lucide="shield-check" class="text-blue-500"></i> SecLAB<span class="text-blue-500">.AI</span>
-            </h1>
-            <p class="text-[10px] text-zinc-500 mt-1 font-mono">AUTONOMOUS REMEDIATION</p>
+    <nav class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col p-4">
+        <div class="mb-8 px-2 flex items-center gap-2 text-blue-500">
+            <i data-lucide="shield-lightning" class="w-6 h-6"></i>
+            <span class="font-bold text-lg text-white">SecLAB Core</span>
         </div>
 
-        <nav class="flex-1 p-4 space-y-2">
-            <button onclick="router.navigate('dashboard')" id="nav-dashboard"
-                class="w-full text-left px-4 py-3 rounded hover:bg-white/5 transition flex items-center gap-3 text-sm font-medium text-zinc-400">
-                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+        <div class="space-y-1 flex-1">
+            <button onclick="router.go('dashboard')" id="btn-dashboard"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
+                <i data-lucide="layout-grid" class="w-4 h-4"></i> Dashboard
             </button>
-            <button onclick="router.navigate('vulnerabilities')" id="nav-vulnerabilities"
-                class="w-full text-left px-4 py-3 rounded hover:bg-white/5 transition flex items-center gap-3 text-sm font-medium text-zinc-400">
+            <button onclick="router.go('vulnerabilities')" id="btn-vulnerabilities"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
                 <i data-lucide="bug" class="w-4 h-4"></i> Vulnerabilities
             </button>
-            <button onclick="router.navigate('patch-lab')" id="nav-patch-lab"
-                class="w-full text-left px-4 py-3 rounded hover:bg-white/5 transition flex items-center gap-3 text-sm font-medium text-zinc-400">
+            <button onclick="router.go('patch-lab')" id="btn-patch-lab"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
                 <i data-lucide="flask-conical" class="w-4 h-4"></i> Patch Lab
             </button>
-            <button onclick="router.navigate('decision-tree')" id="nav-decision-tree"
-                class="w-full text-left px-4 py-3 rounded hover:bg-white/5 transition flex items-center gap-3 text-sm font-medium text-zinc-400">
-                <i data-lucide="git-merge" class="w-4 h-4"></i> Decision Tree
+            <button onclick="router.go('decision-tree')" id="btn-decision-tree"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
+                <i data-lucide="git-branch" class="w-4 h-4"></i> Decision Tree
             </button>
-        </nav>
-
-        <div class="p-4 border-t border-white/5">
-            <div class="glass-panel p-4 rounded-lg">
-                <div class="text-[10px] uppercase text-zinc-500 font-bold mb-2">System Status</div>
-                <div class="flex items-center gap-2 text-emerald-400 text-xs font-mono">
-                    <span class="relative flex h-2 w-2">
-                        <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                        <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                    </span>
-                    ONLINE / POLLING
-                </div>
-            </div>
+            <button onclick="router.go('system-core')" id="btn-system-core"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
+                <i data-lucide="cpu" class="w-4 h-4"></i> System Core
+            </button>
+            <button onclick="router.go('compliance')" id="btn-compliance"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
+                <i data-lucide="file-check" class="w-4 h-4"></i> Compliance
+            </button>
+            <button onclick="router.go('feedback')" id="btn-feedback"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
+                <i data-lucide="message-square" class="w-4 h-4"></i> Feedback
+            </button>
         </div>
-    </aside>
 
-    <!-- MAIN CONTENT -->
-    <main class="flex-1 flex flex-col relative overflow-hidden">
-        <!-- HEADER -->
-        <header class="h-16 border-b border-white/5 flex items-center justify-between px-8 bg-black/20">
-            <h2 id="page-title" class="text-lg font-semibold text-white">Dashboard</h2>
-            <div class="flex items-center gap-4">
-                <button onclick="app.triggerScan()"
-                    class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-xs font-bold uppercase tracking-widest transition flex items-center gap-2">
-                    <i data-lucide="scan-line" class="w-4 h-4"></i> Execute Scan
-                </button>
+        <div class="mt-auto pt-4 border-t border-slate-800">
+            <button onclick="app.executeScan()"
+                class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg shadow-blue-900/20 flex items-center justify-center gap-2 transition-all">
+                <i data-lucide="scan-line"></i> Execute Scan
+            </button>
+        </div>
+    </nav>
+
+    <!-- CONTENT -->
+    <main class="flex-1 bg-slate-950 relative overflow-hidden flex flex-col">
+        <header class="h-16 border-b border-slate-800 flex items-center justify-between px-8">
+            <h2 id="page-title" class="text-xl font-bold text-white">Dashboard</h2>
+            <div class="flex items-center gap-4 text-xs font-mono text-slate-500">
+                <span class="flex items-center gap-2"><span
+                        class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> SYSTEM ACTIVE</span>
             </div>
         </header>
 
-        <!-- VIEWPORT -->
-        <div id="viewport" class="flex-1 overflow-y-auto p-8 relative">
-            <!-- DYNAMIC CONTENT INJECTED HERE -->
+        <div id="viewport" class="p-8 overflow-y-auto flex-1">
+            <!-- Dynamic Content -->
         </div>
     </main>
 
-    <!-- TOAST NOTIFICATION -->
-    <div id="toast" class="fixed bottom-6 right-6 translate-y-20 opacity-0 transition-all duration-300 z-50">
-        <div class="glass-panel px-6 py-4 rounded-lg shadow-2xl border-l-4 border-blue-500 flex items-center gap-4">
-            <i data-lucide="info" class="text-blue-400 w-5 h-5"></i>
-            <div>
-                <h4 id="toast-title" class="text-sm font-bold text-white">Notification</h4>
-                <p id="toast-msg" class="text-xs text-zinc-400">Message content</p>
-            </div>
-        </div>
-    </div>
-
     <script>
-        // --- STATE MANAGEMENT ---
+        const API_URL = "http://localhost:8000";
+
         const store = {
-            state: {
-                metrics: { total_vulnerabilities: 0, detected_count: 0, patched_count: 0, validated_count: 0, fixed_count: 0, overall_risk_score: 0 },
-                vulnerabilities: [],
-                activeVulnerability: null,
-                view: 'dashboard'
-            },
-            listeners: [],
+            scanSession: {},
+            vulnerabilities: [],
+            activeVulnId: null,
+            systemHealth: {},
+            complianceData: {},
+            feedbackData: {},
 
-            subscribe(fn) { this.listeners.push(fn); },
+            async fetchAll() {
+                try {
+                    const [dash, vulns, sys, comp, feed] = await Promise.all([
+                        fetch(`${API_URL}/dashboard`).then(r => r.json()),
+                        fetch(`${API_URL}/vulnerabilities`).then(r => r.json()),
+                        fetch(`${API_URL}/system-core`).then(r => r.json()),
+                        fetch(`${API_URL}/compliance`).then(r => r.json()),
+                        fetch(`${API_URL}/feedback`).then(r => r.json())
+                    ]);
 
-            setState(updates) {
-                this.state = { ...this.state, ...updates };
-                this.listeners.forEach(fn => fn(this.state));
-                render();
+                    this.scanSession = dash;
+                    this.vulnerabilities = vulns;
+                    this.systemHealth = sys;
+                    this.complianceData = comp;
+                    this.feedbackData = feed;
+
+                    app.render();
+                } catch (e) { console.error("Sync Error", e); }
             }
         };
 
-        // --- API CLIENT ---
-        const api = {
-            async get(endpoint) {
-                try {
-                    const res = await fetch(`http://localhost:8000${endpoint}`);
-                    return await res.json();
-                } catch (e) { console.error("API_ERR", e); return null; }
-            },
-            async post(endpoint) {
-                try {
-                    const res = await fetch(`http://localhost:8000${endpoint}`, { method: 'POST' });
-                    return await res.json();
-                } catch (e) { console.error("API_ERR", e); return null; }
+        const router = {
+            current: 'dashboard',
+            go(page) {
+                this.current = page;
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                document.getElementById(`btn-${page}`).classList.add('active');
+
+                const titles = {
+                    'dashboard': 'Security Dashboard',
+                    'vulnerabilities': 'Vulnerability Registry',
+                    'patch-lab': 'Remediation Laboratory',
+                    'decision-tree': 'Decision Logic Visualization',
+                    'system-core': 'Engine Diagnostics',
+                    'compliance': 'Compliance Ledger',
+                    'feedback': 'User Feedback Loop'
+                };
+                document.getElementById('page-title').innerText = titles[page];
+                app.render();
             }
         };
 
-        // --- APP LOGIC ---
         const app = {
-            async init() {
-                await this.refresh();
-                setInterval(() => this.refresh(), 2000); // Real-time polling
+            init() {
+                router.go('dashboard');
+                this.executeScan(); // Auto-scan on load for demo
+                setInterval(() => store.fetchAll(), 2000); // core loop
             },
 
-            async refresh() {
-                const [metrics, vulns] = await Promise.all([
-                    api.get('/dashboard'),
-                    api.get('/vulnerabilities')
-                ]);
-
-                if (metrics && vulns) {
-                    store.setState({ metrics, vulnerabilities: vulns });
-                }
-            },
-
-            async triggerScan() {
-                showToast("Initializing Deep Scan...", "System is analyzing codebase for threats.");
-                await api.post('/scan');
-                await this.refresh();
-                showToast("Scan Complete", "New vulnerabilities may have been detected.");
-                if (store.state.view === 'dashboard') renderDashboard();
+            async executeScan() {
+                document.getElementById('page-title').innerText = "Scanning filesystem...";
+                await fetch(`${API_URL}/scan`, { method: 'POST' });
+                await store.fetchAll();
+                router.go('vulnerabilities');
             },
 
             async generatePatch(id) {
-                showToast("AI Synthesis", "Generating secure code replacement...");
-                const res = await api.post(`/patch/${id}`);
-                if (res) {
-                    showToast("Patch Generated", "Review the diff in the Patch Lab.");
-                    await this.refresh();
-                    // Find updated vuln and set as active to view in lab
-                    const updated = store.state.vulnerabilities.find(v => v.id === id);
-                    if (updated) {
-                        store.setState({ activeVulnerability: updated });
-                        router.navigate('patch-lab');
-                    }
-                }
+                await fetch(`${API_URL}/patch/${id}`, { method: 'POST' });
+                store.activeVulnId = id;
+                await store.fetchAll();
+                router.go('patch-lab');
             },
 
             async validatePatch(id) {
-                showToast("Validation Protocol", "Running regression tests and integrity checks...");
-                const res = await api.post(`/validate/${id}`);
-                if (res) {
-                    showToast("Validation Successful", "Risk score reduced. Vulnerability consolidated.");
-                    await this.refresh();
-                    router.navigate('decision-tree');
+                await fetch(`${API_URL}/validate/${id}`, { method: 'POST' });
+                await store.fetchAll();
+            },
+
+            async submitFeedback(id) {
+                const comment = prompt("Enter comments for this patch:");
+                if (comment) {
+                    await fetch(`${API_URL}/feedback/${id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ rating: 5, comment: comment }) // Default 5 star for demo
+                    });
+                    alert("Feedback Submitted!");
+                    await store.fetchAll();
                 }
-            }
-        };
+            },
 
-        // --- ROUTER ---
-        const router = {
-            navigate(view) {
-                store.setState({ view });
-                document.querySelectorAll('nav button').forEach(b => b.classList.remove('nav-active'));
-                document.getElementById(`nav-${view}`).classList.add('nav-active');
+            render() {
+                const viewport = document.getElementById('viewport');
+                const page = router.current;
+                lucide.createIcons();
 
-                const titles = {
-                    'dashboard': 'Global Security Dashboard',
-                    'vulnerabilities': 'Vulnerability Bank',
-                    'patch-lab': 'AI Remediation Lab',
-                    'decision-tree': 'Decision Tree & Lifecycle'
-                };
-                document.getElementById('page-title').innerText = titles[view];
-            }
-        };
+                if (page === 'dashboard') this.renderDashboard(viewport);
+                else if (page === 'vulnerabilities') this.renderVulns(viewport);
+                else if (page === 'patch-lab') this.renderPatchLab(viewport);
+                else if (page === 'decision-tree') this.renderTree(viewport);
+                else if (page === 'system-core') this.renderSystem(viewport);
+                else if (page === 'compliance') this.renderCompliance(viewport);
+                else if (page === 'feedback') this.renderFeedback(viewport);
+            },
 
-        // --- RENDERERS ---
-        function render() {
-            const view = store.state.view;
-            if (view === 'dashboard') renderDashboard();
-            else if (view === 'vulnerabilities') renderVulnerabilities();
-            else if (view === 'patch-lab') renderPatchLab();
-            else if (view === 'decision-tree') renderDecisionTree();
-            lucide.createIcons();
-        }
-
-        function renderDashboard() {
-            const m = store.state.metrics;
-            const html = `
-            <div class="grid grid-cols-4 gap-6 mb-8">
-                <div class="glass-panel p-6 rounded-xl">
-                    <div class="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Total Threats</div>
-                    <div class="text-3xl font-bold text-white">${m.total_vulnerabilities}</div>
-                </div>
-                <div class="glass-panel p-6 rounded-xl border-l-4 border-red-500">
-                    <div class="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Detected</div>
-                    <div class="text-3xl font-bold text-red-500">${m.detected_count}</div>
-                </div>
-                <div class="glass-panel p-6 rounded-xl border-l-4 border-amber-500">
-                    <div class="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Patched (Pending)</div>
-                    <div class="text-3xl font-bold text-amber-500">${m.patched_count}</div>
-                </div>
-                <div class="glass-panel p-6 rounded-xl border-l-4 border-emerald-500">
-                    <div class="text-zinc-500 text-xs font-bold uppercase tracking-wider mb-2">Fixed & Validated</div>
-                    <div class="text-3xl font-bold text-emerald-500">${m.fixed_count}</div>
-                </div>
-            </div>
-
-            <div class="glass-panel p-8 rounded-xl max-w-2xl">
-                <div class="flex justify-between items-end mb-4">
-                    <div>
-                        <h3 class="text-lg font-bold text-white">Overall System Risk</h3>
-                        <p class="text-xs text-zinc-500">Calculated based on active severity and confidence scores.</p>
+            renderDashboard(el) {
+                const s = store.scanSession;
+                el.innerHTML = `
+                <div class="grid grid-cols-4 gap-6 mb-8">
+                    <div class="glass p-6 rounded-xl">
+                        <div class="text-slate-400 text-xs font-bold uppercase mb-2">Total Vulnerabilities</div>
+                        <div class="text-4xl font-bold text-white">${s.total}</div>
                     </div>
-                    <div class="text-4xl font-black ${m.overall_risk_score > 5 ? 'text-red-500' : 'text-emerald-500'}">${m.overall_risk_score}</div>
+                    <div class="glass p-6 rounded-xl border-l-4 border-amber-500">
+                        <div class="text-slate-400 text-xs font-bold uppercase mb-2">Pending Patch</div>
+                        <div class="text-4xl font-bold text-amber-500">${s.patched}</div>
+                    </div>
+                    <div class="glass p-6 rounded-xl border-l-4 border-emerald-500">
+                        <div class="text-slate-400 text-xs font-bold uppercase mb-2">Validated Secure</div>
+                        <div class="text-4xl font-bold text-emerald-500">${s.validated}</div>
+                    </div>
+                     <div class="glass p-6 rounded-xl border-l-4 border-red-500">
+                        <div class="text-slate-400 text-xs font-bold uppercase mb-2">Total Risk Score</div>
+                        <div class="text-4xl font-bold text-red-500">${s.risk_score}</div>
+                    </div>
                 </div>
-                <div class="w-full h-4 bg-zinc-800 rounded-full overflow-hidden">
-                    <div class="h-full bg-gradient-to-r from-emerald-500 via-amber-500 to-red-600 transition-all duration-1000" style="width: ${m.overall_risk_score * 10}%"></div>
+                <div class="glass p-8 rounded-xl">
+                    <h3 class="text-white font-bold mb-4">Latest Scan Activity</h3>
+                    <div class="font-mono text-slate-400 text-sm">Last Scan: ${s.scan_time || 'Just now'}</div>
                 </div>
-                <div class="flex justify-between mt-2 text-[10px] font-mono text-zinc-600 uppercase">
-                    <span>Low Risk</span>
-                    <span>High Risk</span>
-                </div>
-            </div>
-        `;
-            document.getElementById('viewport').innerHTML = html;
-        }
+            `;
+            },
 
-        function renderVulnerabilities() {
-            if (store.state.vulnerabilities.length === 0) {
-                document.getElementById('viewport').innerHTML = `<div class="text-center mt-20 text-zinc-600 font-mono">NO DATA - EXECUTE SCAN</div>`;
-                return;
-            }
-
-            const rows = store.state.vulnerabilities.map(v => {
-                const statusColors = {
-                    'DETECTED': 'bg-red-500/10 text-red-500',
-                    'PATCHED': 'bg-amber-500/10 text-amber-500',
-                    'VALIDATED': 'bg-emerald-500/10 text-emerald-500',
-                    'FIXED': 'bg-emerald-500/10 text-emerald-500'
-                };
-
-                let actionBtn = '';
-                if (v.status === 'DETECTED') {
-                    actionBtn = `<button onclick="app.generatePatch('${v.id}')" class="bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded text-[10px] font-bold uppercase transition flex items-center gap-2"><i data-lucide="sparkles" class="w-3 h-3"></i> Patch</button>`;
-                } else if (v.status === 'PATCHED') {
-                    actionBtn = `<button onclick="store.setState({activeVulnerability: store.state.vulnerabilities.find(i => i.id === '${v.id}')}); router.navigate('patch-lab')" class="bg-blue-600/20 text-blue-400 hover:bg-blue-600/30 px-3 py-1 rounded text-[10px] font-bold uppercase transition flex items-center gap-2"><i data-lucide="microscope" class="w-3 h-3"></i> Review</button>`;
-                }
-
-                return `
-                <tr class="border-b border-white/5 hover:bg-white/5 transition">
-                    <td class="p-4 font-mono text-xs text-zinc-400">${v.file_name}<span class="text-zinc-600 ml-2">:${v.line_number}</span></td>
-                    <td class="p-4 text-sm font-bold text-white">${v.vulnerability_type}</td>
-                    <td class="p-4"><span class="px-2 py-1 rounded text-[9px] font-bold uppercase bg-zinc-800 text-zinc-300 border border-white/5">${v.severity}</span></td>
-                    <td class="p-4"><span class="${statusColors[v.status]} px-2 py-1 rounded text-[9px] font-bold uppercase border border-current/20">${v.status}</span></td>
-                    <td class="p-4">${actionBtn}</td>
+            renderVulns(el) {
+                const rows = store.vulnerabilities.map(v => `
+                <tr class="border-b border-slate-800 hover:bg-slate-900/50 transition">
+                    <td class="p-4 font-mono text-xs text-blue-400">${v.id}</td>
+                    <td class="p-4 text-white font-medium">${v.vulnerability_type}</td>
+                    <td class="p-4"><span class="bg-red-500/10 text-red-500 px-2 py-1 rounded text-xs font-bold">${v.severity}</span></td>
+                    <td class="p-4 font-mono text-slate-400 text-xs">${v.file_name}:${v.line_number}</td>
+                    <td class="p-4 text-xs font-bold text-slate-300">
+                        <span class="${v.status === 'VALIDATED' ? 'text-emerald-400' : 'text-slate-300'}">${v.status}</span>
+                    </td>
+                    <td class="p-4">
+                        ${v.status === 'DETECTED' ? `<button onclick="app.generatePatch('${v.id}')" class="bg-blue-600 px-3 py-1 rounded text-white text-xs font-bold">Generate Patch</button>` : ''}
+                        ${v.status === 'PATCHED' ? `<button onclick="store.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-amber-600 px-3 py-1 rounded text-white text-xs font-bold">Review Fix</button>` : ''}
+                        ${v.status === 'VALIDATED' ? `<button onclick="app.submitFeedback('${v.id}')" class="bg-slate-700 px-3 py-1 rounded text-white text-xs font-bold">Feedback</button>` : ''}
+                    </td>
                 </tr>
+            `).join('');
+
+                el.innerHTML = `
+                <div class="glass rounded-xl overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-900 text-xs text-slate-500 uppercase font-bold">
+                            <tr>
+                                <th class="p-4">ID</th>
+                                <th class="p-4">Type</th>
+                                <th class="p-4">Severity</th>
+                                <th class="p-4">Location</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                    </table>
+                </div>
             `;
-            }).join('');
+            },
 
-            const html = `
-            <div class="glass-panel rounded-xl overflow-hidden">
-                <table class="w-full text-left">
-                    <thead class="bg-black/40 text-[10px] uppercase font-bold text-zinc-500 tracking-wider">
-                        <tr>
-                            <th class="p-4">File Location</th>
-                            <th class="p-4">Type</th>
-                            <th class="p-4">Severity</th>
-                            <th class="p-4">Status</th>
-                            <th class="p-4">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody>${rows}</tbody>
-                </table>
-            </div>
-        `;
-            document.getElementById('viewport').innerHTML = html;
-        }
+            renderPatchLab(el) {
+                const v = store.vulnerabilities.find(i => i.id === store.activeVulnId);
+                if (!v) { el.innerHTML = `<div class="p-8 text-center text-slate-500">Select a vulnerability from registry first.</div>`; return; }
 
-        function renderPatchLab() {
-            const v = store.state.activeVulnerability;
-            if (!v) {
-                document.getElementById('viewport').innerHTML = `<div class="text-center mt-20 text-zinc-600 font-mono">SELECT A VULNERABILITY FIRST</div>`;
-                return;
+                el.innerHTML = `
+                <div class="grid grid-cols-2 gap-6 h-full">
+                    <div class="glass rounded-xl p-4 flex flex-col">
+                        <div class="text-xs font-bold text-red-500 mb-2 uppercase flex justify-between"><span>Vulnerable Code</span> <span>Score: ${v.risk_score}</span></div>
+                        <pre class="bg-black/50 p-4 rounded text-red-100 font-mono text-xs overflow-auto flex-1">${v.code_snippet}</pre>
+                    </div>
+                    <div class="glass rounded-xl p-4 flex flex-col border border-emerald-500/20">
+                        <div class="text-xs font-bold text-emerald-500 mb-2 uppercase flex justify-between"><span>Proposed Remediation</span> <span>Confidence: ${v.confidence_score * 100}%</span></div>
+                        <pre class="bg-black/50 p-4 rounded text-emerald-100 font-mono text-xs overflow-auto flex-1">${v.diff || 'Generating...'}</pre>
+                        
+                        <div class="mt-4 flex gap-4">
+                            ${v.status === 'PATCHED' ? `<button onclick="app.validatePatch('${v.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded">Validate & Apply Fix</button>` : '<div class="p-3 w-full text-center text-emerald-500 font-bold border border-emerald-500/30 rounded">FIX APPLIED & VALIDATED</div>'}
+                        </div>
+                    </div>
+                </div>
+            `;
+            },
+
+            renderTree(el) {
+                const v = store.vulnerabilities.find(i => i.id === store.activeVulnId);
+                const status = v ? v.status : 'IDLE';
+
+                const steps = ['DETECTED', 'PATCHED', 'VALIDATED', 'FIXED'];
+                const html = steps.map((s, i) => {
+                    const active = s === status || (s === 'FIXED' && status === 'VALIDATED');
+                    return `
+                    <div class="flex flex-col items-center">
+                        <div class="w-16 h-16 rounded-full flex items-center justify-center border-4 ${active ? 'border-blue-500 bg-blue-500/20 text-white' : 'border-slate-800 bg-slate-900 text-slate-700'} font-bold transition-all duration-500">
+                             ${i + 1}
+                        </div>
+                        <div class="mt-4 font-bold text-xs tracking-widest ${active ? 'text-blue-400' : 'text-slate-600'}">${s}</div>
+                    </div>
+                `
+                }).join('<div class="h-1 w-24 bg-slate-800 mt-[30px]"></div>');
+
+                el.innerHTML = `<div class="flex flex-col items-center justify-center h-full"><div class="flex">${html}</div></div>`;
+            },
+
+            renderSystem(el) {
+                const s = store.systemHealth;
+                el.innerHTML = `
+                <div class="grid grid-cols-2 gap-8">
+                     <div class="glass p-8 rounded-xl text-center">
+                        <div class="text-sm text-slate-400 font-bold uppercase">Engine Health</div>
+                        <div class="text-5xl font-black text-emerald-500 mt-4">${s.health_status}</div>
+                    </div>
+                    <div class="glass p-8 rounded-xl text-center">
+                        <div class="text-sm text-slate-400 font-bold uppercase">Remediation Accuracy</div>
+                        <div class="text-5xl font-black text-blue-500 mt-4">${s.engine_accuracy}%</div>
+                    </div>
+                </div>
+                <div class="mt-8 glass p-8 rounded-xl">
+                    <h3 class="font-bold text-white mb-4">Core Statistics</h3>
+                    <div class="grid grid-cols-3 text-center">
+                        <div><div class="text-2xl font-bold text-white">${s.total_scans}</div><div class="text-xs text-slate-500 uppercase">Total Scans</div></div>
+                        <div><div class="text-2xl font-bold text-red-500">${s.total_detected}</div><div class="text-xs text-slate-500 uppercase">Threats Detected</div></div>
+                        <div><div class="text-2xl font-bold text-emerald-500">${s.total_validated}</div><div class="text-xs text-slate-500 uppercase">Threats Eliminated</div></div>
+                    </div>
+                </div>
+            `;
+            },
+
+            renderCompliance(el) {
+                const c = store.complianceData;
+                const history = c.history.map(h => `
+                <div class="flex justify-between items-center py-2 border-b border-slate-800">
+                    <span class="text-slate-400 text-xs font-mono">${h.date}</span>
+                    <span class="text-white text-sm font-bold">${h.type}</span>
+                    <span class="bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded text-[10px] font-bold">FIXED</span>
+                </div>
+            `).join('');
+
+                el.innerHTML = `
+                <div class="glass p-8 rounded-xl mb-8">
+                    <h3 class="text-xl font-bold text-white mb-2">Compliance Ledger</h3>
+                    <div class="text-slate-400 text-sm">Total Fixed Vulnerabilities: <span class="text-white font-bold">${c.total_fixed}</span></div>
+                </div>
+                <div class="glass p-8 rounded-xl">
+                    <h4 class="text-sm font-bold text-slate-500 uppercase mb-4">Recent Audit Stream</h4>
+                    ${history || '<div class="text-slate-600 italic">No validated fixes yet.</div>'}
+                </div>
+            `;
+            },
+
+            renderFeedback(el) {
+                const f = store.feedbackData;
+                const comments = f.recent_comments.map(c => `
+                <div class="bg-black/30 p-4 rounded mb-2">
+                    <div class="flex justify-between mb-1">
+                        <span class="text-xs font-bold text-blue-400">${c.vulnerability}</span>
+                        <span class="text-amber-500 text-xs font-bold">★ ${c.rating}</span>
+                    </div>
+                    <div class="text-slate-300 text-sm">"${c.comment}"</div>
+                </div>
+            `).join('');
+
+                el.innerHTML = `
+                <div class="flex gap-8">
+                    <div class="w-1/3 space-y-4">
+                         <div class="glass p-6 rounded-xl text-center">
+                            <div class="text-4xl font-black text-amber-500">${f.average_rating}</div>
+                            <div class="text-xs text-slate-500 uppercase font-bold mt-1">Average User Rating</div>
+                        </div>
+                        <div class="glass p-6 rounded-xl text-center">
+                            <div class="text-4xl font-black text-white">${f.total_feedback}</div>
+                            <div class="text-xs text-slate-500 uppercase font-bold mt-1">Total Submissions</div>
+                        </div>
+                    </div>
+                    <div class="flex-1 glass p-8 rounded-xl">
+                         <h3 class="text-white font-bold mb-4">Community Feedback</h3>
+                         <div class="h-64 overflow-auto">
+                            ${comments || '<div class="text-slate-500 text-center mt-10">No feedback submitted yet. Validate a patch to submit.</div>'}
+                         </div>
+                    </div>
+                </div>
+            `;
             }
-
-            const isPatched = v.status === 'PATCHED' || v.status === 'VALIDATED';
-
-            const html = `
-            <div class="flex gap-6 h-full flex-col">
-                <div class="flex justify-between items-start">
-                    <div>
-                        <h3 class="text-xl font-bold text-white mb-1">${v.vulnerability_type}</h3>
-                        <p class="text-xs text-zinc-500 font-mono">${v.file_name} : Line ${v.line_number}</p>
-                    </div>
-                    <div class="flex gap-4">
-                        <div class="text-right">
-                            <div class="text-[10px] uppercase text-zinc-500 font-bold">Confidence</div>
-                            <div class="text-xl font-bold text-emerald-400">${(v.confidence_score * 100).toFixed(1)}%</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-[10px] uppercase text-zinc-500 font-bold">Current Risk</div>
-                            <div class="text-xl font-bold ${v.risk_score > 5 ? 'text-red-500' : 'text-emerald-500'}">${v.risk_score}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex-1 grid grid-cols-2 gap-4 min-h-0">
-                    <div class="glass-panel rounded-xl overflow-hidden flex flex-col">
-                        <div class="bg-black/40 p-3 border-b border-white/5 text-[10px] font-bold uppercase text-red-500 flex justify-between">
-                            <span>Original Source</span>
-                            <i data-lucide="file-warning"></i>
-                        </div>
-                        <pre class="p-4 font-mono text-xs text-zinc-300 overflow-auto flex-1">${v.code_snippet}</pre>
-                    </div>
-                    <div class="glass-panel rounded-xl overflow-hidden flex flex-col border border-emerald-500/20">
-                        <div class="bg-emerald-900/10 p-3 border-b border-emerald-500/20 text-[10px] font-bold uppercase text-emerald-500 flex justify-between">
-                            <span>Generated Fix (Diff)</span>
-                            <i data-lucide="file-check"></i>
-                        </div>
-                        <pre class="p-4 font-mono text-xs text-emerald-100 overflow-auto flex-1">${v.patch_diff || '// Waiting for patch generation...'}</pre>
-                    </div>
-                </div>
-
-                <div class="flex justify-end pt-4 border-t border-white/5">
-                    ${v.status === 'DETECTED'
-                    ? `<button onclick="app.generatePatch('${v.id}')" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded font-bold uppercase text-xs tracking-widest transition">Generate Patch</button>`
-                    : (
-                        v.status === 'PATCHED'
-                            ? `<button onclick="app.validatePatch('${v.id}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded font-bold uppercase text-xs tracking-widest transition flex items-center gap-2"><i data-lucide="check-circle-2" class="w-4 h-4"></i> Validate & Deploy</button>`
-                            : `<div class="text-emerald-500 font-bold text-sm uppercase flex items-center gap-2"><i data-lucide="shield-check"></i> Fix Validated</div>`
-                    )
-                }
-                </div>
-            </div>
-        `;
-            document.getElementById('viewport').innerHTML = html;
-        }
-
-        function renderDecisionTree() {
-            const v = store.state.activeVulnerability;
-            const status = v ? v.status : 'IDLE';
-
-            const steps = ['DETECTED', 'PATCHED', 'VALIDATED', 'FIXED']; // Fixed is equivalent to Validated in this flow
-
-            const stepsHtml = steps.map((step, idx) => {
-                const isActive = v && (v.status === step || (step === 'FIXED' && v.status === 'VALIDATED')); // treat Validated as Fixed
-                const isPast = v && steps.indexOf(v.status) > idx;
-
-                let color = 'border-zinc-800 text-zinc-600 bg-zinc-900';
-                let iconColor = 'text-zinc-700';
-
-                if (isActive) {
-                    color = 'border-blue-500 text-white bg-blue-500/10 shadow-[0_0_20px_rgba(59,130,246,0.2)]';
-                    iconColor = 'text-blue-500';
-                } else if (isPast) {
-                    color = 'border-emerald-500 text-emerald-500 bg-emerald-500/5';
-                    iconColor = 'text-emerald-500';
-                }
-
-                return `
-                <div class="flex flex-col items-center z-10">
-                    <div class="w-24 h-24 rounded-2xl border-2 ${color} flex items-center justify-center mb-4 transition-all duration-500">
-                        <i data-lucide="${step === 'DETECTED' ? 'siren' : (step === 'PATCHED' ? 'hammer' : 'check-circle')}" class="w-8 h-8 ${iconColor}"></i>
-                    </div>
-                    <div class="text-xs font-bold uppercase tracking-widest ${isActive ? 'text-blue-400' : (isPast ? 'text-emerald-500' : 'text-zinc-600')}">${step}</div>
-                </div>
-            `;
-            }).join('<div class="w-32 h-1 bg-zinc-800 mt-[-40px]"></div>');
-
-            const html = `
-            <div class="h-full flex flex-col justify-center items-center">
-                <div class="flex items-center justify-center w-full mb-20">
-                    ${stepsHtml}
-                </div>
-                
-                ${v ? `
-                <div class="glass-panel p-8 rounded-xl max-w-lg w-full">
-                    <div class="text-center mb-6">
-                         <h3 class="text-lg font-bold text-white mb-2">Live Lifecycle Monitor</h3>
-                         <p class="text-xs text-zinc-500 font-mono uppercase">${v.id} // ${v.file_name}</p>
-                    </div>
-                    <div class="space-y-4">
-                        <div class="flex justify-between text-xs">
-                            <span class="text-zinc-500">Vulnerability Type</span>
-                            <span class="text-white font-bold">${v.vulnerability_type}</span>
-                        </div>
-                        <div class="flex justify-between text-xs">
-                            <span class="text-zinc-500">Current Status</span>
-                            <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-bold">${v.status}</span>
-                        </div>
-                         <div class="flex justify-between text-xs">
-                            <span class="text-zinc-500">Risk Mitigation</span>
-                            <span class="text-emerald-500 font-bold">-${(100 - (v.risk_score / 10) * 100).toFixed(0)}%</span>
-                        </div>
-                    </div>
-                </div>
-                ` : '<div class="text-zinc-600 font-mono text-sm">SELECT A VULNERABILITY TO TRACK LIFECYCLE</div>'}
-            </div>
-        `;
-            document.getElementById('viewport').innerHTML = html;
-        }
-
-        function showToast(title, msg) {
-            const el = document.getElementById('toast');
-            document.getElementById('toast-title').innerText = title;
-            document.getElementById('toast-msg').innerText = msg;
-            el.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => el.classList.add('translate-y-20', 'opacity-0'), 3000);
-        }
-
-        // --- BOOTSTRAP ---
-        window.onload = () => {
-            app.init();
-            router.navigate('dashboard');
         };
+
+        window.onload = () => app.init();
     </script>
 </body>
 

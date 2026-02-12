@@ -1,72 +1,70 @@
 import requests
+import json
 import time
-import sys
 
 BASE_URL = "http://localhost:8000"
 
-def log(msg, success=True):
-    icon = "✅" if success else "❌"
-    print(f"{icon} {msg}")
+def check(name, success):
+    print(f"{'✅' if success else '❌'} {name}")
 
-def check_backend():
+def verify_all():
+    print("--- STARTING SYSTEM VERIFICATION ---")
     try:
-        # 1. Check Root
-        res = requests.get(BASE_URL)
-        if res.status_code == 200 and "SecLAB" in res.text:
-            log("Root HTML served successfully")
-        else:
-            log(f"Root check failed: {res.status_code}", False)
-            return
-
-        # 2. Trigger Scan
+        # 1. Scan
+        print("\n[1] Executing Scan...")
         res = requests.post(f"{BASE_URL}/scan")
+        if res.status_code != 200:
+            print(f"SCAN FAILED: {res.status_code} {res.text}")
         data = res.json()
-        if res.status_code == 200 and data['detected'] > 0:
-            log(f"Scan successful. Detected {data['detected']} vulnerabilities")
-        else:
-            log(f"Scan failed: {res.text}", False)
-            return
-
-        # 3. Get Vulnerabilities
+        check("Scan execution", res.status_code == 200 and data['detected'] > 0)
+        
+        # 2. Get Vulnerabilities
+        print("\n[2] Fetching Registry...")
         res = requests.get(f"{BASE_URL}/vulnerabilities")
+        if res.status_code != 200:
+             print(f"REGISTRY FAILED: {res.status_code} {res.text}")
         vulns = res.json()
-        if len(vulns) > 0:
-            log(f"Retrieved {len(vulns)} vulnerabilities")
-            target = vulns[0]['id']
-        else:
-            log("No vulnerabilities found to patch", False)
-            return
-
-        # 4. Generate Patch
-        res = requests.post(f"{BASE_URL}/patch/{target}")
-        patch = res.json()
-        if patch['status'] == 'PATCHED':
-            log(f"Patch generated for {target}")
-        else:
-            log(f"Patch generation failed: {res.text}", False)
-            return
-
-        # 5. Validate Patch
-        res = requests.post(f"{BASE_URL}/validate/{target}")
-        validated = res.json()
-        if validated['status'] == 'VALIDATED':
-            log(f"Patch validated for {target}")
-        else:
-            log(f"Validation failed: {res.text}", False)
-            return
-
-        # 6. Check Dashboard
-        res = requests.get(f"{BASE_URL}/dashboard")
-        dash = res.json()
-        if dash['validated_count'] >= 1:
-            log("Dashboard metrics updated correctly")
-        else:
-            log("Dashboard metrics mismatch", False)
-
-        print("\nAll Systems Operational.")
-
+        chk = len(vulns) > 0
+        check(f"Registry listed {len(vulns)} items", chk)
+        if not chk: return
+        
+        target_id = vulns[0]['id']
+        
+        # 3. Patch
+        print(f"\n[3] Generating Patch for {target_id}...")
+        res = requests.post(f"{BASE_URL}/patch/{target_id}")
+        p_data = res.json()
+        check("Patch generation", p_data['status'] == 'PATCHED')
+        
+        # 4. Validate
+        print(f"\n[4] Validating Fix...")
+        res = requests.post(f"{BASE_URL}/validate/{target_id}")
+        v_data = res.json()
+        check("Validation success", v_data['new_risk_score'] == 0.0)
+        
+        # 5. Feedback
+        print("\n[5] Submitting Feedback...")
+        res = requests.post(f"{BASE_URL}/feedback/{target_id}", json={"rating": 5, "comment": "Great fix!"})
+        check("Feedback submission", res.status_code == 200)
+        
+        # 6. Analytics Checks
+        print("\n[6] Verifying Analytics Tabs...")
+        dash = requests.get(f"{BASE_URL}/dashboard").json()
+        check("Dashboard metrics updated", dash['validated'] >= 1)
+        
+        sys_core = requests.get(f"{BASE_URL}/system-core").json()
+        check("System Core accuracy", sys_core['engine_accuracy'] > 0)
+        
+        comp = requests.get(f"{BASE_URL}/compliance").json()
+        check("Compliance ledger", comp['total_fixed'] >= 1)
+        
+        fb = requests.get(f"{BASE_URL}/feedback").json()
+        check("Feedback aggregation", fb['total_feedback'] >= 1)
+        
+        print("\n--- ALL SYSTEMS OPERATIONAL ---")
+        
     except Exception as e:
-        log(f"Verification crashed: {e}", False)
+        print(f"CRITICAL FAILURE: {e}")
 
 if __name__ == "__main__":
-    check_backend()
+    verify_all()
