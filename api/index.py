@@ -166,9 +166,27 @@ def execute_scan():
     sid = session.id
     count = len(detected_vulns)
     
+    # Serialize for immediate frontend display
+    serialized_vulns = []
+    for v in detected_vulns:
+        serialized_vulns.append({
+            "id": v.id,
+            "file_name": v.file_name,
+            "line_number": v.line_number,
+            "vulnerability_type": v.vulnerability_type,
+            "severity": v.severity,
+            "code_snippet": v.code_snippet,
+            "status": v.status,
+            "risk_score": v.risk_score
+        })
+    
     db.close()
     
-    return {"status": "Complete", "session_id": sid, "detected": count}
+    return {
+        "scan_id": sid, 
+        "total_vulnerabilities": count,
+        "vulnerabilities": serialized_vulns
+    }
 
 @app.get("/vulnerabilities")
 def get_vulnerabilities():

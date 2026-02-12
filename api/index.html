@@ -158,9 +158,21 @@
 
             async executeScan() {
                 document.getElementById('page-title').innerText = "Scanning filesystem...";
-                await fetch(`${API_URL}/scan`, { method: 'POST' });
-                await store.fetchAll();
-                router.go('vulnerabilities');
+                try {
+                    const res = await fetch(`${API_URL}/scan`, { method: 'POST' });
+                    const data = await res.json();
+                    console.log("Scan Results:", data);
+
+                    if (data.vulnerabilities) {
+                        store.vulnerabilities = data.vulnerabilities;
+                    }
+
+                    await store.fetchAll();
+                    router.go('vulnerabilities');
+                } catch (e) {
+                    console.error("Scan Failed", e);
+                    alert("Scan failed to execute. Check console.");
+                }
             },
 
             async generatePatch(id) {

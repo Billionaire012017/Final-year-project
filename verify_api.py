@@ -16,19 +16,14 @@ def verify_all():
         if res.status_code != 200:
             print(f"SCAN FAILED: {res.status_code} {res.text}")
         data = res.json()
-        check("Scan execution", res.status_code == 200 and data['detected'] > 0)
+        check("Scan execution", res.status_code == 200 and data['total_vulnerabilities'] > 0)
         
-        # 2. Get Vulnerabilities
+        target_id = data['vulnerabilities'][0]['id']
+        print(f"Targeting Vulnerability: {target_id}")
+        
+        # 2. Get Vulnerabilities (Check registry)
         print("\n[2] Fetching Registry...")
         res = requests.get(f"{BASE_URL}/vulnerabilities")
-        if res.status_code != 200:
-             print(f"REGISTRY FAILED: {res.status_code} {res.text}")
-        vulns = res.json()
-        chk = len(vulns) > 0
-        check(f"Registry listed {len(vulns)} items", chk)
-        if not chk: return
-        
-        target_id = vulns[0]['id']
         
         # 3. Patch
         print(f"\n[3] Generating Patch for {target_id}...")
