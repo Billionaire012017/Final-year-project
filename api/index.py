@@ -1,7 +1,7 @@
 import os
 import sys
 from fastapi import FastAPI, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sqlalchemy import create_engine, Column, Integer, String, Text, Float, DateTime, ForeignKey
@@ -34,7 +34,7 @@ def append_log(session_id, msg, level="INFO"):
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.dirname(BASE_DIR)
-DB_PATH = os.path.join(PROJECT_ROOT, "vulnerabilities.db")
+DB_PATH = os.path.join(PROJECT_ROOT, "vulnerabilities_enforced.db")
 TEST_DATA_DIR = os.path.join(PROJECT_ROOT, "test_data")
 
 # --- DATABASE SETUP ---
@@ -87,6 +87,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request, exc):
+    import traceback
+    print(f"ERROR: {exc}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "traceback": traceback.format_exc()},
+    )
 
 # --- MODELS ---
 class FeedbackRequest(BaseModel):

@@ -151,6 +151,10 @@
             async fetchTerminal() {
                 try {
                     const res = await fetch(`${API_URL}/terminal-stream?session_id=${this.currentScanId}`);
+                    if (!res.ok) {
+                        const errData = await res.json();
+                        throw new Error(errData.detail || `HTTP ${res.status}`);
+                    }
                     const data = await res.json();
                     this.terminalLogs = data.logs || [];
                     this.scanStatus = data.status || 'COMPLETED';
@@ -167,9 +171,13 @@
                         body: JSON.stringify({ url })
                     });
                     const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     router.go('terminal');
-                } catch (e) { console.error("Web Scan Failed", e); }
+                } catch (e) {
+                    console.error("Web Scan Failed", e);
+                    alert(`Web Scan Failed: ${e.message}`);
+                }
             },
 
             async scanPredefinedWebsite(id) {
@@ -177,14 +185,14 @@
                 try {
                     const res = await fetch(`${API_URL}/scan-website/${id}`, { method: 'POST' });
                     const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
                     router.go('terminal');
-                    // Start polling immediately
                     this.fetchTerminal();
                 } catch (e) {
                     console.error("Predefined Scan Failed", e);
-                    alert('Failed to start scan. Please check if the server is running.');
+                    alert(`Failed to start scan: ${e.message}`);
                 }
             },
 
@@ -193,10 +201,14 @@
                 try {
                     const res = await fetch(`${API_URL}/executive-scan`, { method: 'POST' });
                     const data = await res.json();
+                    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
                     router.go('terminal');
-                } catch (e) { console.error("Executive Scan Failed", e); }
+                } catch (e) {
+                    console.error("Executive Scan Failed", e);
+                    alert(`Executive Scan Failed: ${e.message}`);
+                }
             },
 
             async executeScan() {
