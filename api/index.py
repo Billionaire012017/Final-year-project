@@ -19,21 +19,16 @@ import regex as re
 # --- GLOBAL LOGS & SESSIONS ---
 terminal_sessions = {}
 
-def append_log(session_id, msg):
+def append_log(session_id, msg, level="INFO"):
     if session_id not in terminal_sessions:
         terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
     
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-    lvl = "[INFO]"
-    msg_lower = msg.lower()
-    if any(x in msg_lower for x in ["eval", "detected", "error", "critical", "warning"]):
-        lvl = "[WARNING]"
-    if "critical" in msg_lower or "[error]" in msg_lower:
-        lvl = "[ERROR]"
-    if any(x in msg_lower for x in ["completed", "success"]):
-        lvl = "[SUCCESS]"
-        
-    log_entry = f"{lvl} [{timestamp}] {msg}"
+    log_entry = {
+        "timestamp": timestamp,
+        "level": level,
+        "message": msg
+    }
     terminal_sessions[session_id]["logs"].append(log_entry)
 
 # --- CONFIGURATION ---
@@ -97,6 +92,8 @@ class FeedbackRequest(BaseModel):
     rating: int
     comment: str
 
+ALLOWED_VULN_TYPES = ["EVAL_INJECTION", "EXEC_INJECTION", "SQL_INJECTION", "DOM_XSS"]
+
 # --- SCANNERS ---
 def scan_file_content(content, filename):
     vulns = []
@@ -109,25 +106,20 @@ def scan_file_content(content, filename):
         severity = "LOW"
         risk = 2.0
         
-        # Rule 1: Eval
         if "eval(" in stripped:
-            v_type = "Unsafe Eval Execution"
+            v_type = "EVAL_INJECTION"
             severity = "CRITICAL"
             risk = 10.0
-        
-        # Rule 2: Exec
         elif "exec(" in stripped:
-            v_type = "Remote Code Execution (exec)"
+            v_type = "EXEC_INJECTION"
             severity = "CRITICAL"
             risk = 9.5
-
-        # Rule 3: SQL Injection (Basic pattern)
         elif "SELECT" in stripped and ("+" in stripped or "%" in stripped):
-            v_type = "SQL Injection Risk"
+            v_type = "SQL_INJECTION"
             severity = "HIGH"
             risk = 8.0
             
-        if v_type:
+        if v_type and v_type in ALLOWED_VULN_TYPES:
             vulns.append({
                 "id": f"VULN-{random.randint(10000, 99999)}",
                 "file_name": filename,
@@ -182,7 +174,6 @@ def run_filesystem_scan(session_id: str):
     append_log(session_id, "Starting filesystem scan...")
     db = SessionLocal()
     
-    # Create new session
     scan_session = ScanSession(total_files_scanned=0, total_vulnerabilities=0, overall_risk_score=0)
     db.add(scan_session)
     db.commit()
@@ -202,8 +193,7 @@ def run_filesystem_scan(session_id: str):
                     
                     found = scan_file_content(content, file)
                     for v in found:
-                        append_log(session_id, f"Vulnerability detected in {file}: {v['vulnerability_type']}")
-                        # Check for existing duplicate (file + line + type)
+                        append_log(session_id, f"[ERROR] {file} | Line {v['line_number']} | {v['vulnerability_type']}", level="ERROR")
                         existing = db.query(Vulnerability).filter(
                             Vulnerability.file_name == v["file_name"],
                             Vulnerability.line_number == v["line_number"],
@@ -218,9 +208,11 @@ def run_filesystem_scan(session_id: str):
                             db.add(db_vuln)
                             detected_vulns.append(db_vuln)
     
-    append_log(session_id, f"Scan session {scan_session.id} finished. Found {len(detected_vulns)} issues.")
+    if not detected_vulns:
+        append_log(session_id, "No vulnerabilities detected in modules.", level="SUCCESS")
+        
+    append_log(session_id, f"Scan session {scan_session.id} finished.", level="SUCCESS")
     
-    # Update Session Stats
     total_risk = sum(v.risk_score for v in detected_vulns)
     scan_session.total_files_scanned = files_scanned
     scan_session.total_vulnerabilities = len(detected_vulns)
@@ -256,8 +248,6 @@ def scan_website_manual(payload: dict, background_tasks: BackgroundTasks):
 def executive_scan(background_tasks: BackgroundTasks):
     session_id = "executive-" + str(uuid.uuid4())[:8]
     terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
-    
-    # We'll run them in sequence in one background task
     background_tasks.add_task(run_executive_scan_task, session_id)
     return {"scan_id": session_id}
 
@@ -268,33 +258,32 @@ def run_executive_scan_task(session_id: str):
         try:
             scan_website_core(site["url"], session_id, site["name"])
         except Exception as e:
-            append_log(session_id, f"[WARNING] Could not connect to {site['name']}: {str(e)}")
+            append_log(session_id, f"Could not connect to {site['name']}: {str(e)}", level="WARNING")
     
-    append_log(session_id, "Executive Scan Completed.")
+    append_log(session_id, "Executive Scan Completed Successfully.", level="SUCCESS")
     terminal_sessions[session_id]["status"] = "COMPLETED"
 
 def scan_website_task(url: str, session_id: str, app_name: str):
     try:
         scan_website_core(url, session_id, app_name)
-        append_log(session_id, "Scan Completed.")
+        append_log(session_id, "Scan Completed Successfully.", level="SUCCESS")
         terminal_sessions[session_id]["status"] = "COMPLETED"
     except Exception as e:
-        append_log(session_id, f"[ERROR] Scan failed: {str(e)}")
+        append_log(session_id, f"Scan failed: {str(e)}", level="ERROR")
         terminal_sessions[session_id]["status"] = "COMPLETED"
 
 def scan_website_core(url: str, session_id: str, app_name: str):
     append_log(session_id, f"Connecting to {app_name}...")
-    append_log(session_id, "Fetching HTML...")
+    append_log(session_id, "Fetching HTML content...")
     db = SessionLocal()
     
     try:
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
-        append_log(session_id, "Parsing scripts...")
+        append_log(session_id, "Parsing script blocks...")
         
         detected_vulns = []
         
-        # 1. Scan Inline Scripts
         scripts = soup.find_all('script')
         for i, script in enumerate(scripts):
             content = script.string if script.string else ""
@@ -307,18 +296,17 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                 risk = 0.0
                 
                 if "eval(" in stripped:
-                    v_type = "Unsafe Eval Execution"
+                    v_type = "EVAL_INJECTION"
                     risk = 10.0
                 elif "innerHTML" in stripped and "=" in stripped:
-                    v_type = "Potential XSS via innerHTML"
+                    v_type = "DOM_XSS"
                     risk = 7.0
                 elif "document.write(" in stripped:
-                    v_type = "Unsafe document.write usage"
+                    v_type = "DOM_XSS"
                     risk = 6.0
                 
-                if v_type:
-                    append_log(session_id, f"[ERROR] {app_name} | Line {line_num+1} | {v_type}")
-                    # Deduplication
+                if v_type and v_type in ALLOWED_VULN_TYPES:
+                    append_log(session_id, f"[ERROR] {app_name} | Line {line_num+1} | {v_type}", level="ERROR")
                     existing = db.query(Vulnerability).filter(
                         Vulnerability.file_name == app_name,
                         Vulnerability.line_number == line_num + 1,
@@ -340,13 +328,12 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                         db.add(db_vuln)
                         detected_vulns.append(db_vuln)
 
-        # 2. Scan Forms
         forms = soup.find_all('form')
         for form in forms:
             inputs = form.find_all('input')
             for inp in inputs:
                 if inp.get('type') == 'text' or not inp.get('type'):
-                    v_type = "Unsanitized Web Form Input"
+                    v_type = "SQL_INJECTION"
                     existing = db.query(Vulnerability).filter(
                         Vulnerability.file_name == app_name,
                         Vulnerability.vulnerability_type == v_type,
@@ -354,7 +341,7 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                     ).first()
                     
                     if not existing:
-                        append_log(session_id, f"[ERROR] {app_name} | Potential unsanitized input {inp.get('name', 'unnamed')}")
+                        append_log(session_id, f"[ERROR] {app_name} | Unsanitized form input detected: {inp.get('name', 'unnamed')}", level="ERROR")
                         db_vuln = Vulnerability(
                             id=f"WEB-{random.randint(10000, 99999)}",
                             file_name=app_name,
@@ -369,7 +356,7 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                         detected_vulns.append(db_vuln)
 
         if not detected_vulns:
-            append_log(session_id, "[INFO] No critical pattern found.")
+            append_log(session_id, "No vulnerabilities detected.", level="SUCCESS")
 
         db.commit()
         db.close()
@@ -379,20 +366,22 @@ def scan_website_core(url: str, session_id: str, app_name: str):
 
 @app.get("/terminal-output")
 def get_terminal_output_legacy():
-    # Merge all logs for total history or just return default
     all_logs = []
     for s in terminal_sessions.values():
         all_logs.extend(s["logs"])
-    return {"logs": all_logs[-50:]}
+    
+    # Format for legacy string output
+    formatted = [f"[{l['level']}] [{l['timestamp']}] {l['message']}" for l in all_logs[-50:]]
+    return {"logs": formatted}
 
 @app.get("/vulnerabilities")
 def get_vulnerabilities():
     db = SessionLocal()
-    # Get latest session vulns or all
-    vulns = db.query(Vulnerability).all()
-    # Eager load or just return list of dicts to avoid detach error
+    # Return only real vulnerability records
+    vulns = db.query(Vulnerability).filter(
+        Vulnerability.status.in_(["DETECTED", "PATCHED", "VALIDATED", "FIXED"])
+    ).all()
     res = [v.__dict__ for v in vulns]  
-    # Remove SA internal state
     for r in res:
         r.pop('_sa_instance_state', None)
     db.close()
