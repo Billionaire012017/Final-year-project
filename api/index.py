@@ -12,6 +12,18 @@ from sqlalchemy import create_engine, Column, Integer, String, Text, Float, Date
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.sql import func
+import requests
+from bs4 import BeautifulSoup
+
+# --- GLOBAL LOGS ---
+TERMINAL_LOGS = []
+
+def add_log(msg):
+    timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+    lvl = "[INFO]" if "eval" not in msg.lower() and "detected" not in msg.lower() else "[WARNING]"
+    if "completed" in msg.lower() or "success" in msg.lower(): lvl = "[SUCCESS]"
+    TERMINAL_LOGS.append(f"{lvl} [{timestamp}] {msg}")
+    if len(TERMINAL_LOGS) > 50: TERMINAL_LOGS.pop(0)
 
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -127,6 +139,7 @@ def read_root():
 
 @app.post("/scan")
 def execute_scan():
+    add_log("Starting filesystem scan...")
     db = SessionLocal()
     
     # Create new session
@@ -149,6 +162,7 @@ def execute_scan():
                     
                     found = scan_file_content(content, file)
                     for v in found:
+                        add_log(f"Vulnerability detected in {file}: {v['vulnerability_type']}")
                         # Check for existing duplicate (file + line + type)
                         existing = db.query(Vulnerability).filter(
                             Vulnerability.file_name == v["file_name"],
@@ -166,6 +180,8 @@ def execute_scan():
                             db_vuln = Vulnerability(**v, scan_session_id=session.id)
                             db.add(db_vuln)
                             detected_vulns.append(db_vuln)
+    
+    add_log(f"Scan session {session.id} finished. Found {len(detected_vulns)} issues.")
     
     # Update Session Stats
     total_risk = sum(v.risk_score for v in detected_vulns)
@@ -201,6 +217,129 @@ def execute_scan():
         "total_vulnerabilities": count,
         "vulnerabilities": serialized_vulns
     }
+
+@app.post("/scan-website")
+def scan_website(payload: dict):
+    url = payload.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="URL is required")
+    
+    add_log(f"Scanning website: {url}")
+    db = SessionLocal()
+    
+    try:
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        detected_vulns = []
+        
+        # 1. Scan Inline Scripts
+        scripts = soup.find_all('script')
+        add_log(f"Found {len(scripts)} script tags")
+        
+        for i, script in enumerate(scripts):
+            content = script.string if script.string else ""
+            if not content: continue
+            
+            lines = content.split('\n')
+            for line_num, line in enumerate(lines):
+                stripped = line.strip()
+                v_type = None
+                risk = 0.0
+                
+                if "eval(" in stripped:
+                    v_type = "Unsafe Eval in Web Script"
+                    risk = 10.0
+                elif "innerHTML" in stripped and "=" in stripped:
+                    v_type = "Potential XSS via innerHTML"
+                    risk = 7.0
+                elif "document.write(" in stripped:
+                    v_type = "Unsafe document.write usage"
+                    risk = 6.0
+                
+                if v_type:
+                    add_log(f"Vulnerability found in script {i} at line {line_num+1}: {v_type}")
+                    # Deduplication
+                    existing = db.query(Vulnerability).filter(
+                        Vulnerability.file_name == url,
+                        Vulnerability.line_number == line_num + 1,
+                        Vulnerability.vulnerability_type == v_type
+                    ).first()
+                    
+                    if existing:
+                        detected_vulns.append(existing)
+                    else:
+                        v_id = f"WEB-{random.randint(10000, 99999)}"
+                        db_vuln = Vulnerability(
+                            id=v_id,
+                            file_name=url,
+                            line_number=line_num + 1,
+                            vulnerability_type=v_type,
+                            severity="HIGH" if risk > 7 else "MEDIUM",
+                            code_snippet=stripped[:200],
+                            risk_score=risk,
+                            status="DETECTED"
+                        )
+                        db.add(db_vuln)
+                        detected_vulns.append(db_vuln)
+
+        # 2. Scan Forms
+        forms = soup.find_all('form')
+        add_log(f"Found {len(forms)} form elements")
+        for form in forms:
+            inputs = form.find_all('input')
+            for inp in inputs:
+                if inp.get('type') == 'text' or not inp.get('type'):
+                    # Flag unsanitized input potentially
+                    v_type = "Unsanitized Web Form Input"
+                    v_id = f"WEB-{random.randint(10000, 99999)}"
+                    add_log(f"Detected potential unsanitized input: {inp.get('name')}")
+                    
+                    existing = db.query(Vulnerability).filter(
+                        Vulnerability.file_name == url,
+                        Vulnerability.vulnerability_type == v_type,
+                        Vulnerability.code_snippet.contains(str(inp)[:50])
+                    ).first()
+                    
+                    if not existing:
+                        db_vuln = Vulnerability(
+                            id=v_id,
+                            file_name=url,
+                            line_number=0,
+                            vulnerability_type=v_type,
+                            severity="LOW",
+                            code_snippet=str(inp)[:200],
+                            risk_score=3.0,
+                            status="DETECTED"
+                        )
+                        db.add(db_vuln)
+                        detected_vulns.append(db_vuln)
+
+        db.commit()
+        add_log(f"Scan completed. Total issues: {len(detected_vulns)}")
+        
+        res = []
+        for v in detected_vulns:
+            res.append({
+                "id": v.id,
+                "file_name": v.file_name,
+                "line_number": v.line_number,
+                "vulnerability_type": v.vulnerability_type,
+                "severity": v.severity,
+                "status": v.status,
+                "risk_score": v.risk_score
+            })
+        db.close()
+        return res
+
+    except Exception as e:
+        add_log(f"Scan failed: {str(e)}")
+        db.close()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/terminal-output")
+def get_terminal_output():
+    return {"logs": TERMINAL_LOGS}
 
 @app.get("/vulnerabilities")
 def get_vulnerabilities():

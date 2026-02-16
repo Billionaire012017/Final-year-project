@@ -71,6 +71,10 @@
                 class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
                 <i data-lucide="message-square" class="w-4 h-4"></i> Feedback
             </button>
+            <button onclick="router.go('terminal')" id="btn-terminal"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
+                <i data-lucide="terminal" class="w-4 h-4"></i> Terminal
+            </button>
         </div>
 
         <div class="mt-auto pt-4 border-t border-slate-800">
@@ -100,7 +104,6 @@
         // Dynamic API URL - works on both localhost and Render
         const API_URL = window.location.origin;
 
-        // Centralized Pipeline State
         const pipelineState = {
             scanId: null,
             vulnerabilities: [],
@@ -108,9 +111,9 @@
             systemCore: {},
             complianceData: {},
             feedbackData: {},
+            terminalLogs: [],
             activeVulnId: null,
 
-            // Fetch all data from backend
             async fetchAll() {
                 try {
                     const [dash, vulns, sys, comp, feed] = await Promise.all([
@@ -120,93 +123,78 @@
                         fetch(`${API_URL}/compliance`).then(r => r.json()),
                         fetch(`${API_URL}/feedback`).then(r => r.json())
                     ]);
-
                     this.metrics = dash;
                     this.vulnerabilities = vulns;
                     this.systemCore = sys;
                     this.complianceData = comp;
                     this.feedbackData = feed;
-
                     app.render();
                 } catch (e) { console.error("Pipeline Sync Error", e); }
             },
 
-            // Action: Execute Scan
+            async fetchTerminal() {
+                try {
+                    const res = await fetch(`${API_URL}/terminal-output`);
+                    const data = await res.json();
+                    this.terminalLogs = data.logs || [];
+                    if (router.current === 'terminal') app.render();
+                } catch (e) { console.error("Terminal Sync Error", e); }
+            },
+
+            async scanWebsite(url) {
+                console.log("[ACTION] Scan Website:", url);
+                try {
+                    router.go('terminal');
+                    const res = await fetch(`${API_URL}/scan-website`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url })
+                    });
+                    const data = await res.json();
+                    this.vulnerabilities = data;
+                    await this.fetchAll();
+                } catch (e) { console.error("Web Scan Failed", e); }
+            },
+
             async executeScan() {
                 console.log("[ACTION] Execute Scan");
                 try {
-                    console.log(`Fetching from: ${API_URL}/scan`);
                     const res = await fetch(`${API_URL}/scan`, { method: 'POST' });
-                    console.log(`Response status: ${res.status}`);
-
-                    if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                    }
-
+                    if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                     const data = await res.json();
-                    console.log("Scan Results:", data);
-
                     this.scanId = data.scan_id;
                     this.vulnerabilities = data.vulnerabilities || [];
-
-                    console.log(`Loaded ${this.vulnerabilities.length} vulnerabilities`);
-
-                    // Refresh all dependent tabs
                     await this.fetchAll();
                     router.go('vulnerabilities');
                 } catch (e) {
                     console.error("Scan Failed:", e);
-                    console.error("Error details:", e.message, e.stack);
-                    alert(`Scan failed: ${e.message}. Check console for details.`);
+                    alert(`Scan failed: ${e.message}`);
                 }
             },
 
-            // Action: Generate Patch
             async generatePatch(id) {
-                console.log(`[ACTION] Generate Patch for ${id}`);
                 try {
                     await fetch(`${API_URL}/patch/${id}`, { method: 'POST' });
-
-                    // Update vulnerability status locally
                     const vuln = this.vulnerabilities.find(v => v.id === id);
                     if (vuln) vuln.status = "PATCHED";
-
-                    // Refresh system core (accuracy changes) and compliance
-                    await Promise.all([
-                        fetch(`${API_URL}/system-core`).then(r => r.json()).then(d => this.systemCore = d),
-                        fetch(`${API_URL}/compliance`).then(r => r.json()).then(d => this.complianceData = d),
-                        fetch(`${API_URL}/vulnerabilities`).then(r => r.json()).then(d => this.vulnerabilities = d)
-                    ]);
-
-                    app.render();
+                    await this.fetchAll();
                     router.go('patch-lab');
                     this.activeVulnId = id;
-                } catch (e) {
-                    console.error("Patch Failed", e);
-                }
+                } catch (e) { console.error("Patch Failed", e); }
             },
 
-            // Action: Validate Patch
             async validatePatch(id) {
-                console.log(`[ACTION] Validate Patch for ${id}`);
                 try {
                     await fetch(`${API_URL}/validate/${id}`, { method: 'POST' });
-
-                    // Update vulnerability status locally
                     const vuln = this.vulnerabilities.find(v => v.id === id);
                     if (vuln) {
                         vuln.status = "VALIDATED";
                         vuln.risk_score = 0;
                     }
-
-                    // Refresh dashboard (risk score), system core, compliance, decision tree
                     await this.fetchAll();
-
-                    alert("Patch validated successfully! Risk score reduced.");
+                    alert("Patch validated successfully!");
                     router.go('decision-tree');
-                } catch (e) {
-                    console.error("Validation Failed", e);
-                }
+                } catch (e) { console.error("Validation Failed", e); }
             }
         };
 
@@ -224,7 +212,8 @@
                     'decision-tree': 'Decision Logic Visualization',
                     'system-core': 'Engine Diagnostics',
                     'compliance': 'Compliance Ledger',
-                    'feedback': 'User Feedback Loop'
+                    'feedback': 'User Feedback Loop',
+                    'terminal': 'Live System Terminal'
                 };
                 document.getElementById('page-title').innerText = titles[page];
                 app.render();
@@ -236,6 +225,7 @@
                 router.go('dashboard');
                 pipelineState.executeScan(); // Auto-scan on load
                 setInterval(() => pipelineState.fetchAll(), 2000); // Continuous sync
+                setInterval(() => pipelineState.fetchTerminal(), 2000); // Terminal sync
             },
 
             async executeScan() {
@@ -276,6 +266,7 @@
                 else if (page === 'system-core') this.renderSystem(viewport);
                 else if (page === 'compliance') this.renderCompliance(viewport);
                 else if (page === 'feedback') this.renderFeedback(viewport);
+                else if (page === 'terminal') this.renderTerminal(viewport);
             },
 
             renderDashboard(el) {
@@ -294,10 +285,25 @@
                         <div class="text-slate-400 text-xs font-bold uppercase mb-2">Validated Secure</div>
                         <div class="text-4xl font-bold text-emerald-500">${s.validated}</div>
                     </div>
-                     <div class="glass p-6 rounded-xl border-l-4 border-red-500">
+                    <div class="glass p-6 rounded-xl border-l-4 border-red-500">
                         <div class="text-slate-400 text-xs font-bold uppercase mb-2">Total Risk Score</div>
                         <div class="text-4xl font-bold text-red-500">${s.risk_score}</div>
                     </div>
+                </div>
+
+                <div class="glass p-8 rounded-xl bg-gradient-to-br from-blue-900/20 to-transparent border border-blue-500/20">
+                    <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                        <i data-lucide="globe" class="text-blue-500"></i> Website Vulnerability Scan
+                    </h3>
+                    <div class="flex gap-4">
+                        <input type="text" id="web-url" placeholder="https://example.com" value="https://example.com"
+                            class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-all">
+                        <button onclick="pipelineState.scanWebsite(document.getElementById('web-url').value)"
+                            class="bg-blue-600 hover:bg-blue-500 text-white font-bold px-8 py-3 rounded-lg shadow-lg shadow-blue-900/30 transition-all">
+                            Scan Website
+                        </button>
+                    </div>
+                    <p class="mt-4 text-slate-500 text-xs italic">Enter any URL to audit its front-end security posture (Scripts, Forms, Headers).</p>
                 </div>
                 <div class="glass p-8 rounded-xl">
                     <h3 class="text-white font-bold mb-4">Latest Scan Activity</h3>
@@ -526,48 +532,67 @@
             renderFeedback(el) {
                 const f = pipelineState.feedbackData;
                 const comments = (f.comments || []).map(c => `
-                <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-lg mb-3">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-xs font-mono text-blue-400">${c.vulnerability_id}</span>
-                        <div class="flex items-center gap-1">
-                            ${Array(c.rating).fill('<span class="text-amber-500">★</span>').join('')}
-                            ${Array(5 - c.rating).fill('<span class="text-slate-700">★</span>').join('')}
+                    <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-lg mb-3">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-blue-400 font-mono text-xs">${c.vulnerability_id}</span>
+                            <div class="flex gap-1 text-amber-500">
+                                ${Array(c.rating).fill('★').join('')}
+                            </div>
                         </div>
+                        <p class="text-slate-300 text-sm italic">"${c.comment}"</p>
+                        <div class="mt-2 text-right text-[10px] text-slate-600 uppercase font-bold">${c.created_at}</div>
                     </div>
-                    <div class="text-slate-300 text-sm mb-1">"${c.comment}"</div>
-                    <div class="text-xs text-slate-600">${c.created_at}</div>
-                </div>
-            `).join('');
+                `).join('');
 
                 el.innerHTML = `
-                <div class="grid grid-cols-4 gap-6 mb-8">
-                    <div class="glass p-6 rounded-xl text-center col-span-1">
-                        <div class="text-sm text-slate-400 font-bold uppercase mb-2">Average Rating</div>
-                        <div class="text-5xl font-black text-amber-500">${f.average_rating || 0}</div>
-                        <div class="flex justify-center gap-1 mt-3">
-                            ${Array(Math.round(f.average_rating || 0)).fill('<span class="text-amber-500 text-2xl">★</span>').join('')}
+                    <div class="grid grid-cols-2 gap-8 h-full">
+                        <div class="glass p-8 rounded-xl flex flex-col items-center justify-center text-center">
+                            <div class="text-slate-400 font-bold uppercase mb-4">Average Security Rating</div>
+                            <div class="text-8xl font-black text-amber-500 mb-2">${f.average_rating || 0}</div>
+                            <div class="flex gap-2 text-2xl text-amber-500 mb-6">
+                                ${Array(Math.round(f.average_rating || 0)).fill('★').join('')}
+                            </div>
+                            <div class="text-slate-500 text-sm uppercase tracking-widest">${f.total_feedback || 0} Submissions</div>
+                        </div>
+                        
+                        <div class="flex flex-col h-full bg-slate-900/30 rounded-xl border border-slate-800 p-6 overflow-hidden">
+                            <h3 class="text-white font-bold mb-4 uppercase text-xs tracking-widest text-slate-400">Community Feedback</h3>
+                            <div class="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                                ${comments || '<div class="h-full flex items-center justify-center text-slate-600 italic">No feedback submitted yet. Validate a patch to submit feedback.</div>'}
+                            </div>
                         </div>
                     </div>
-                    
-                    <div class="glass p-6 rounded-xl text-center col-span-1">
-                        <div class="text-sm text-slate-400 font-bold uppercase mb-2">Total Feedback</div>
-                        <div class="text-5xl font-black text-white">${f.total_feedback || 0}</div>
-                        <div class="text-xs text-slate-500 mt-3">SUBMISSIONS</div>
+                `;
+            },
+
+            renderTerminal(el) {
+                const logs = pipelineState.terminalLogs.map(log => {
+                    let color = 'text-emerald-500';
+                    if (log.includes('[WARNING]')) color = 'text-amber-400';
+                    if (log.includes('[ERROR]')) color = 'text-red-500';
+                    if (log.includes('[SUCCESS]')) color = 'text-blue-400';
+                    return `<div class="mb-1 ${color} font-mono text-xs">${log}</div>`;
+                }).join('');
+
+                el.innerHTML = `
+                    <div class="h-full flex flex-col bg-black rounded-xl border border-slate-800 overflow-hidden shadow-2xl">
+                        <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-amber-500"></div>
+                                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                            </div>
+                            <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">SecLAB System Console</div>
+                        </div>
+                        <div id="terminal-body" class="flex-1 p-6 overflow-y-auto custom-scrollbar font-mono">
+                            ${logs || '<div class="text-slate-700 font-mono text-xs animate-pulse">_ Waiting for system input...</div>'}
+                        </div>
                     </div>
-                    
-                    <div class="glass p-8 rounded-xl col-span-2">
-                        <h3 class="text-white font-bold mb-4">Submit Feedback</h3>
-                        <div class="text-slate-400 text-sm">Feedback is submitted automatically when you validate a patch. Check the Vulnerabilities tab to validate pending patches.</div>
-                    </div>
-                </div>
-                
-                <div class="glass p-8 rounded-xl">
-                    <h3 class="text-white font-bold mb-4">Community Feedback</h3>
-                    <div class="overflow-auto" style="max-height: 500px">
-                        ${comments || '<div class="text-slate-500 text-center py-10">No feedback submitted yet. Validate a patch to submit feedback.</div>'}
-                    </div>
-                </div>
-            `;
+                `;
+
+                // Auto scroll
+                const term = document.getElementById('terminal-body');
+                if (term) term.scrollTop = term.scrollHeight;
             }
         };
 

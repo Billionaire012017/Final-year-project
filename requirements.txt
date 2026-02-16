@@ -8,3 +8,4 @@ uvicorn
 python-multipart
 regex
 requests
+beautifulsoup4
