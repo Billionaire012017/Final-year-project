@@ -9,3 +9,4 @@ python-multipart
 regex
 requests
 beautifulsoup4
+gunicorn
