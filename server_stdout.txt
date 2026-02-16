@@ -1,0 +1,4 @@
+INFO:     127.0.0.1:63760 - "POST /scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64102 - "GET /vulnerabilities HTTP/1.1" 200 OK
+INFO:     127.0.0.1:50323 - "POST /scan HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64897 - "GET /vulnerabilities HTTP/1.1" 200 OK

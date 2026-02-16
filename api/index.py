@@ -149,9 +149,23 @@ def execute_scan():
                     
                     found = scan_file_content(content, file)
                     for v in found:
-                        db_vuln = Vulnerability(**v, scan_session_id=session.id)
-                        db.add(db_vuln)
-                        detected_vulns.append(db_vuln)
+                        # Check for existing duplicate (file + line + type)
+                        existing = db.query(Vulnerability).filter(
+                            Vulnerability.file_name == v["file_name"],
+                            Vulnerability.line_number == v["line_number"],
+                            Vulnerability.vulnerability_type == v["vulnerability_type"]
+                        ).first()
+                        
+                        if existing:
+                            # Update existing vuln session link
+                            existing.scan_session_id = session.id
+                            # Keep status if already PATCHED/VALIDATED
+                            detected_vulns.append(existing)
+                        else:
+                            # Create new
+                            db_vuln = Vulnerability(**v, scan_session_id=session.id)
+                            db.add(db_vuln)
+                            detected_vulns.append(db_vuln)
     
     # Update Session Stats
     total_risk = sum(v.risk_score for v in detected_vulns)
