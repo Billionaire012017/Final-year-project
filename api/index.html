@@ -75,6 +75,10 @@
                 class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
                 <i data-lucide="terminal" class="w-4 h-4"></i> Terminal
             </button>
+            <button onclick="router.go('website-scanner')" id="btn-website-scanner"
+                class="nav-item w-full text-left px-4 py-3 rounded-lg text-slate-400 hover:bg-slate-800 transition flex items-center gap-3">
+                <i data-lucide="globe" class="w-4 h-4"></i> Website Scanner
+            </button>
         </div>
 
         <div class="mt-auto pt-4 border-t border-slate-800">
@@ -112,6 +116,7 @@
             complianceData: {},
             feedbackData: {},
             terminalLogs: [],
+            availableWebsites: [],
             activeVulnId: null,
 
             async fetchAll() {
@@ -132,9 +137,18 @@
                 } catch (e) { console.error("Pipeline Sync Error", e); }
             },
 
+            async fetchWebsites() {
+                try {
+                    const res = await fetch(`${API_URL}/available-websites`);
+                    const data = await res.json();
+                    this.availableWebsites = data.websites || [];
+                    if (router.current === 'website-scanner') app.render();
+                } catch (e) { console.error("Websites Fetch Error", e); }
+            },
+
             async fetchTerminal() {
                 try {
-                    const res = await fetch(`${API_URL}/terminal-output`);
+                    const res = await fetch(`${API_URL}/terminal-stream`);
                     const data = await res.json();
                     this.terminalLogs = data.logs || [];
                     if (router.current === 'terminal') app.render();
@@ -154,6 +168,15 @@
                     this.vulnerabilities = data;
                     await this.fetchAll();
                 } catch (e) { console.error("Web Scan Failed", e); }
+            },
+
+            async scanPredefinedWebsite(id) {
+                console.log("[ACTION] Predefined Scan:", id);
+                try {
+                    router.go('terminal');
+                    const res = await fetch(`${API_URL}/scan-website/${id}`, { method: 'POST' });
+                    await this.fetchAll();
+                } catch (e) { console.error("Predefined Scan Failed", e); }
             },
 
             async executeScan() {
@@ -213,7 +236,8 @@
                     'system-core': 'Engine Diagnostics',
                     'compliance': 'Compliance Ledger',
                     'feedback': 'User Feedback Loop',
-                    'terminal': 'Live System Terminal'
+                    'terminal': 'Live System Terminal',
+                    'website-scanner': 'Pre-connected Security Audit'
                 };
                 document.getElementById('page-title').innerText = titles[page];
                 app.render();
@@ -223,9 +247,10 @@
         const app = {
             init() {
                 router.go('dashboard');
-                pipelineState.executeScan(); // Auto-scan on load
-                setInterval(() => pipelineState.fetchAll(), 2000); // Continuous sync
-                setInterval(() => pipelineState.fetchTerminal(), 2000); // Terminal sync
+                pipelineState.executeScan();
+                pipelineState.fetchWebsites();
+                setInterval(() => pipelineState.fetchAll(), 2000);
+                setInterval(() => pipelineState.fetchTerminal(), 2000);
             },
 
             async executeScan() {
@@ -267,6 +292,7 @@
                 else if (page === 'compliance') this.renderCompliance(viewport);
                 else if (page === 'feedback') this.renderFeedback(viewport);
                 else if (page === 'terminal') this.renderTerminal(viewport);
+                else if (page === 'website-scanner') this.renderWebsiteScanner(viewport);
             },
 
             renderDashboard(el) {
@@ -593,6 +619,33 @@
                 // Auto scroll
                 const term = document.getElementById('terminal-body');
                 if (term) term.scrollTop = term.scrollHeight;
+            },
+
+            renderWebsiteScanner(el) {
+                const sites = pipelineState.availableWebsites.map(s => `
+                    <div class="glass p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center text-blue-500">
+                                    <i data-lucide="globe" class="w-5 h-5"></i>
+                                </div>
+                                <h4 class="text-white font-bold leading-tight">${s.name}</h4>
+                            </div>
+                            <div class="text-[10px] font-mono text-slate-500 mb-6 truncate">${s.url}</div>
+                        </div>
+                        <button onclick="pipelineState.scanPredefinedWebsite('${s.id}')"
+                            class="w-full bg-slate-800 hover:bg-blue-600 text-white font-bold py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="zap" class="w-3 h-3"></i> Initialize Audit
+                        </button>
+                    </div>
+                `).join('');
+
+                el.innerHTML = `
+                    <div class="grid grid-cols-4 gap-6">
+                        ${sites || '<div class="col-span-4 text-center py-20 text-slate-500">Loading website registry...</div>'}
+                    </div>
+                `;
+                lucide.createIcons();
             }
         };
 

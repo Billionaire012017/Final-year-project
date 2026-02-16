@@ -129,6 +129,20 @@ def scan_file_content(content, filename):
             })
     return vulns
 
+# --- PREDEFINED WEBSITES ---
+PREDEFINED_WEBSITES = [
+    {"id": "juice_shop", "name": "OWASP Juice Shop (Official Demo)", "url": "https://demo.owasp-juice.shop/"},
+    {"id": "altoro_mutual", "name": "Altoro Mutual Banking Demo (IBM Test Site)", "url": "http://demo.testfire.net/"},
+    {"id": "acunetix_testphp", "name": "Acunetix Test PHP Application", "url": "http://testphp.vulnweb.com/"},
+    {"id": "public_firing_range", "name": "Google Gruyere / Public Firing Range", "url": "https://public-firing-range.appspot.com/"},
+    {"id": "xss_game", "name": "Google XSS Game", "url": "https://xss-game.appspot.com/"},
+    {"id": "badstore", "name": "OWASP BadStore", "url": "http://badstore.net/"},
+    {"id": "zero_bank", "name": "Zero Bank Demo Application", "url": "http://zero.webappsecurity.com/"},
+    {"id": "vulnweb_api", "name": "VulnWeb REST API Demo", "url": "https://api.vulnweb.com/"},
+    {"id": "hackthissite", "name": "HackThisSite Training Platform", "url": "https://www.hackthissite.org/"},
+    {"id": "demo_login_app", "name": "Demo Login Test Application", "url": "https://the-internet.herokuapp.com/"}
+]
+
 # --- ENDPOINTS ---
 
 @app.get("/", response_class=HTMLResponse)
@@ -136,6 +150,14 @@ def read_root():
     path = os.path.join(BASE_DIR, "index.html")
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
+
+@app.get("/available-websites")
+def get_available_websites():
+    return {"websites": PREDEFINED_WEBSITES}
+
+@app.get("/terminal-stream")
+def terminal_stream():
+    return {"logs": TERMINAL_LOGS}
 
 @app.post("/scan")
 def execute_scan():
@@ -173,7 +195,6 @@ def execute_scan():
                         if existing:
                             # Update existing vuln session link
                             existing.scan_session_id = session.id
-                            # Keep status if already PATCHED/VALIDATED
                             detected_vulns.append(existing)
                         else:
                             # Create new
@@ -192,11 +213,9 @@ def execute_scan():
     db.commit()
     db.refresh(session)
     
-    # Extract values before closing
     sid = session.id
     count = len(detected_vulns)
     
-    # Serialize for immediate frontend display
     serialized_vulns = []
     for v in detected_vulns:
         serialized_vulns.append({
@@ -211,31 +230,38 @@ def execute_scan():
         })
     
     db.close()
+    return {"scan_id": sid, "total_vulnerabilities": count, "vulnerabilities": serialized_vulns}
+
+@app.post("/scan-website/{website_id}")
+def scan_predefined_website(website_id: str):
+    site = next((s for s in PREDEFINED_WEBSITES if s["id"] == website_id), None)
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found in registry")
     
-    return {
-        "scan_id": sid, 
-        "total_vulnerabilities": count,
-        "vulnerabilities": serialized_vulns
-    }
+    return scan_website_core(site["url"])
 
 @app.post("/scan-website")
-def scan_website(payload: dict):
+def scan_website_legacy(payload: dict):
     url = payload.get("url")
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
-    
-    add_log(f"Scanning website: {url}")
+    return scan_website_core(url)
+
+def scan_website_core(url: str):
+    add_log(f"Connecting to URL: {url}")
+    add_log("[INFO] Fetching HTML content...")
     db = SessionLocal()
     
     try:
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
+        add_log("[INFO] HTML Parsing complete.")
         
         detected_vulns = []
         
         # 1. Scan Inline Scripts
         scripts = soup.find_all('script')
-        add_log(f"Found {len(scripts)} script tags")
+        add_log(f"[INFO] Analyizing {len(scripts)} script blocks...")
         
         for i, script in enumerate(scripts):
             content = script.string if script.string else ""
@@ -248,17 +274,19 @@ def scan_website(payload: dict):
                 risk = 0.0
                 
                 if "eval(" in stripped:
-                    v_type = "Unsafe Eval in Web Script"
+                    v_type = "Unsafe Eval Execution"
                     risk = 10.0
+                    add_log(f"[WARNING] eval() detected in script tag {i}")
                 elif "innerHTML" in stripped and "=" in stripped:
                     v_type = "Potential XSS via innerHTML"
                     risk = 7.0
+                    add_log(f"[WARNING] innerHTML assignment detected in script {i}")
                 elif "document.write(" in stripped:
                     v_type = "Unsafe document.write usage"
                     risk = 6.0
+                    add_log(f"[WARNING] document.write detected in script {i}")
                 
                 if v_type:
-                    add_log(f"Vulnerability found in script {i} at line {line_num+1}: {v_type}")
                     # Deduplication
                     existing = db.query(Vulnerability).filter(
                         Vulnerability.file_name == url,
@@ -285,15 +313,13 @@ def scan_website(payload: dict):
 
         # 2. Scan Forms
         forms = soup.find_all('form')
-        add_log(f"Found {len(forms)} form elements")
+        add_log(f"[INFO] Auditing {len(forms)} form structures...")
         for form in forms:
             inputs = form.find_all('input')
             for inp in inputs:
                 if inp.get('type') == 'text' or not inp.get('type'):
-                    # Flag unsanitized input potentially
                     v_type = "Unsanitized Web Form Input"
                     v_id = f"WEB-{random.randint(10000, 99999)}"
-                    add_log(f"Detected potential unsanitized input: {inp.get('name')}")
                     
                     existing = db.query(Vulnerability).filter(
                         Vulnerability.file_name == url,
@@ -302,6 +328,7 @@ def scan_website(payload: dict):
                     ).first()
                     
                     if not existing:
+                        add_log(f"[WARNING] Unsanitized input field detected: {inp.get('name', 'unnamed')}")
                         db_vuln = Vulnerability(
                             id=v_id,
                             file_name=url,
@@ -316,7 +343,7 @@ def scan_website(payload: dict):
                         detected_vulns.append(db_vuln)
 
         db.commit()
-        add_log(f"Scan completed. Total issues: {len(detected_vulns)}")
+        add_log(f"[SUCCESS] Website scan completed for {url}")
         
         res = []
         for v in detected_vulns:
@@ -330,10 +357,10 @@ def scan_website(payload: dict):
                 "risk_score": v.risk_score
             })
         db.close()
-        return res
+        return {"scan_summary": {"url": url, "vulnerabilities_found": len(res)}, "vulnerabilities": res}
 
     except Exception as e:
-        add_log(f"Scan failed: {str(e)}")
+        add_log(f"[ERROR] Scan failed: {str(e)}")
         db.close()
         raise HTTPException(status_code=500, detail=str(e))
 
