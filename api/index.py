@@ -105,6 +105,49 @@ class FeedbackRequest(BaseModel):
 
 ALLOWED_VULN_TYPES = ["EVAL_INJECTION", "EXEC_INJECTION", "SQL_INJECTION", "DOM_XSS"]
 
+# --- REMEDIATION HELPER ---
+def get_remediation_info(v_type, original_code):
+    """Generates suggested_fix and diff for a vulnerability."""
+    fixed_code = original_code
+    suggested_fix = "No specific fix available. Manually review code for security risks."
+    
+    if not original_code:
+        original_code = f"<{v_type}> detected"
+        fixed_code = original_code
+
+    if v_type == "EVAL_INJECTION":
+        fixed_code = original_code.replace("eval", "ast.literal_eval")
+        suggested_fix = "Use ast.literal_eval() for safe parsing of literal structures."
+    elif v_type == "EXEC_INJECTION":
+        fixed_code = "# exec() removed for security\n# Use specific module functions instead."
+        suggested_fix = "Remove dynamic execution. Use direct library calls instead."
+    elif v_type == "SQL_INJECTION":
+        if "SELECT" in original_code:
+            fixed_code = 'cursor.execute("SELECT * FROM users WHERE id = ?", (id,))'
+            suggested_fix = "Use parameterized queries to prevent SQL injection."
+        else:
+            fixed_code = "# Form input validation required\n# sanitized_input = sanitize(input)"
+            suggested_fix = "Use parameterized queries and input sanitization."
+    elif v_type == "DOM_XSS":
+        if "innerHTML" in original_code:
+            fixed_code = original_code.replace("innerHTML", "textContent")
+            suggested_fix = "Use textContent instead of innerHTML to prevent script execution."
+        elif "document.write" in original_code:
+            fixed_code = original_code.replace("document.write", "console.log")
+            suggested_fix = "Avoid document.write. Use safer DOM manipulation methods like textContent."
+        else:
+            fixed_code = f"// {original_code} // Sanitization applied"
+            suggested_fix = "Sanitize DOM manipulations to prevent XSS."
+
+    # Ensure diff is always correctly formatted
+    diff = f"--- Original\n+++ Patched\n- {original_code}\n+ {fixed_code}"
+    
+    return {
+        "suggested_fix": suggested_fix,
+        "fixed_code": fixed_code,
+        "diff": diff
+    }
+
 # --- SCANNERS ---
 def scan_file_content(content, filename, target_url="LOCAL_FILESYSTEM"):
     vulns = []
@@ -131,15 +174,18 @@ def scan_file_content(content, filename, target_url="LOCAL_FILESYSTEM"):
             risk = 8.0
             
         if v_type and v_type in ALLOWED_VULN_TYPES:
+            remediation = get_remediation_info(v_type, stripped)
             vulns.append({
                 "id": f"VULN-{random.randint(10000, 99999)}",
                 "file_name": filename,
                 "line_number": line_num,
                 "vulnerability_type": v_type,
                 "severity": severity,
-                "code_snippet": stripped,
+                "code_snippet": stripped if stripped else f"<{v_type}> pattern found",
                 "risk_score": risk,
                 "target_url": target_url,
+                "suggested_fix": remediation["suggested_fix"],
+                "diff": remediation["diff"],
                 "status": "DETECTED"
             })
     return vulns
@@ -327,15 +373,18 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                     
                     if not existing:
                         v_id = f"WEB-{random.randint(10000, 99999)}"
+                        remediation = get_remediation_info(v_type, stripped)
                         db_vuln = Vulnerability(
                             id=v_id,
                             file_name=app_name,
                             line_number=line_num + 1,
                             vulnerability_type=v_type,
                             severity="HIGH" if risk > 7 else "MEDIUM",
-                            code_snippet=stripped[:200],
+                            code_snippet=stripped if stripped else f"<{v_type}> detected in script",
                             risk_score=risk,
                             target_url=url,
+                            suggested_fix=remediation["suggested_fix"],
+                            diff=remediation["diff"],
                             status="DETECTED"
                         )
                         db.add(db_vuln)
@@ -355,15 +404,19 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                     
                     if not existing:
                         append_log(session_id, f"[ERROR] {app_name} | Unsanitized form input detected: {inp.get('name', 'unnamed')}", level="ERROR")
+                        snippet = f"Form input name='{inp.get('name', 'unnamed')}'"
+                        remediation = get_remediation_info(v_type, snippet)
                         db_vuln = Vulnerability(
                             id=f"WEB-{random.randint(10000, 99999)}",
                             file_name=app_name,
                             line_number=0,
                             vulnerability_type=v_type,
                             severity="LOW",
-                            code_snippet=str(inp)[:200],
+                            code_snippet=snippet,
                             risk_score=3.0,
                             target_url=url,
+                            suggested_fix=remediation["suggested_fix"],
+                            diff=remediation["diff"],
                             status="DETECTED"
                         )
                         db.add(db_vuln)
@@ -419,13 +472,12 @@ def generate_patch(id: str):
     elif "exec" in original:
         fixed = "# exec() removed for security\n# Use specific module functions instead."
         vuln.suggested_fix = "Remove dynamic execution."
-    elif "SELECT" in original:
-        fixed = 'cursor.execute("SELECT * FROM users WHERE id = ?", (id,))'
-        vuln.suggested_fix = "Use parameterized queries."
-        
-    diff = f"--- Original\n+++ Patched\n- {original}\n+ {fixed}"
+    # Remediation via Helper
+    original = vuln.code_snippet or f"<{vuln.vulnerability_type}> context missing"
+    remediation = get_remediation_info(vuln.vulnerability_type, original)
     
-    vuln.diff = diff
+    vuln.suggested_fix = remediation["suggested_fix"]
+    vuln.diff = remediation["diff"]
     vuln.status = "PATCHED"
     vuln.confidence_score = round(random.uniform(0.85, 0.98), 2)
     vuln.risk_score = vuln.risk_score # Risk persists until validation
