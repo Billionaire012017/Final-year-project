@@ -65,6 +65,7 @@ class Vulnerability(Base):
     status = Column(String, default="DETECTED") # DETECTED, PATCHED, VALIDATED, FIXED
     confidence_score = Column(Float, default=0.0)
     risk_score = Column(Float, default=10.0)
+    target_url = Column(String, nullable=True) # New field for visibility
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class Feedback(Base):
@@ -95,7 +96,7 @@ class FeedbackRequest(BaseModel):
 ALLOWED_VULN_TYPES = ["EVAL_INJECTION", "EXEC_INJECTION", "SQL_INJECTION", "DOM_XSS"]
 
 # --- SCANNERS ---
-def scan_file_content(content, filename):
+def scan_file_content(content, filename, target_url="LOCAL_FILESYSTEM"):
     vulns = []
     lines = content.split('\n')
     for i, line in enumerate(lines):
@@ -128,6 +129,7 @@ def scan_file_content(content, filename):
                 "severity": severity,
                 "code_snippet": stripped,
                 "risk_score": risk,
+                "target_url": target_url,
                 "status": "DETECTED"
             })
     return vulns
@@ -323,6 +325,7 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                             severity="HIGH" if risk > 7 else "MEDIUM",
                             code_snippet=stripped[:200],
                             risk_score=risk,
+                            target_url=url,
                             status="DETECTED"
                         )
                         db.add(db_vuln)
@@ -350,6 +353,7 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                             severity="LOW",
                             code_snippet=str(inp)[:200],
                             risk_score=3.0,
+                            target_url=url,
                             status="DETECTED"
                         )
                         db.add(db_vuln)

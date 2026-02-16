@@ -362,14 +362,23 @@
                     <td class="p-4 font-mono text-xs text-blue-400">${v.id}</td>
                     <td class="p-4 text-white font-medium">${v.vulnerability_type}</td>
                     <td class="p-4"><span class="bg-red-500/10 text-red-500 px-2 py-1 rounded text-xs font-bold">${v.severity}</span></td>
-                    <td class="p-4 font-mono text-slate-400 text-xs">${v.file_name}:${v.line_number}</td>
+                    <td class="p-4">
+                        <div class="font-mono text-slate-400 text-xs mb-1">${v.file_name}:${v.line_number}</div>
+                        <div class="flex items-center gap-1 group">
+                            <div class="text-[10px] text-blue-500/70 truncate max-w-[150px]" title="${v.target_url}">${v.target_url || 'LOCAL'}</div>
+                            <button onclick="navigator.clipboard.writeText('${v.target_url}'); this.innerHTML='✓'; setTimeout(() => this.innerHTML='📋', 1000)" 
+                                    class="text-[9px] text-slate-600 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all">📋</button>
+                        </div>
+                    </td>
                     <td class="p-4 text-xs font-bold text-slate-300">
                         <span class="${v.status === 'VALIDATED' ? 'text-emerald-400' : 'text-slate-300'}">${v.status}</span>
                     </td>
                     <td class="p-4">
-                        ${v.status === 'DETECTED' ? `<button onclick="app.generatePatch('${v.id}')" class="bg-blue-600 px-3 py-1 rounded text-white text-xs font-bold">Generate Patch</button>` : ''}
-                        ${v.status === 'PATCHED' ? `<button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-amber-600 px-3 py-1 rounded text-white text-xs font-bold">Review Fix</button>` : ''}
-                        ${v.status === 'VALIDATED' ? `<button onclick="app.submitFeedback('${v.id}')" class="bg-slate-700 px-3 py-1 rounded text-white text-xs font-bold">Feedback</button>` : ''}
+                        <div class="flex gap-2">
+                            ${v.status === 'DETECTED' ? `<button onclick="app.generatePatch('${v.id}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs font-bold transition-all">Generate Patch</button>` : ''}
+                            ${v.status === 'PATCHED' ? `<button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-white text-xs font-bold transition-all">Review Fix</button>` : ''}
+                            ${v.status === 'VALIDATED' ? `<button onclick="app.submitFeedback('${v.id}')" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white text-xs font-bold transition-all">Feedback</button>` : ''}
+                        </div>
                     </td>
                 </tr>
             `).join('');
@@ -431,9 +440,13 @@
                                 <span>🔴 Vulnerable Code</span> 
                                 <span>Risk: ${v.risk_score}/10</span>
                             </div>
-                            <div class="text-[10px] text-slate-600 mb-2">
-                                <span class="text-slate-500">File:</span> <span class="text-slate-400 font-mono">${v.file_name}</span> 
-                                <span class="text-slate-500 ml-2">Line:</span> <span class="text-slate-400 font-mono">${v.line_number}</span>
+                            <div class="text-[10px] text-slate-600 mb-2 space-y-1">
+                                <div class="flex justify-between items-center group">
+                                    <span><span class="text-slate-500">Target URL:</span> <span class="text-blue-400 font-mono">${v.target_url || 'LOCAL'}</span></span>
+                                    <button onclick="navigator.clipboard.writeText('${v.target_url}'); this.innerText='copied'" class="text-[9px] text-slate-700 hover:text-blue-400 uppercase font-bold transition-all">Copy</button>
+                                </div>
+                                <div><span class="text-slate-500">File:</span> <span class="text-slate-400 font-mono">${v.file_name}</span></div>
+                                <div><span class="text-slate-500">Line:</span> <span class="text-slate-400 font-mono">${v.line_number}</span></div>
                             </div>
                             <pre class="bg-black/50 p-4 rounded text-red-100 font-mono text-xs overflow-auto flex-1">${v.code_snippet || '// No code snippet available'}</pre>
                         </div>
