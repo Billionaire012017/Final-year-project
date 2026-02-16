@@ -178,8 +178,14 @@
                     const res = await fetch(`${API_URL}/scan-website/${id}`, { method: 'POST' });
                     const data = await res.json();
                     this.currentScanId = data.scan_id;
+                    this.scanStatus = 'RUNNING';
                     router.go('terminal');
-                } catch (e) { console.error("Predefined Scan Failed", e); }
+                    // Start polling immediately
+                    this.fetchTerminal();
+                } catch (e) {
+                    console.error("Predefined Scan Failed", e);
+                    alert('Failed to start scan. Please check if the server is running.');
+                }
             },
 
             async executiveScan() {
@@ -188,6 +194,7 @@
                     const res = await fetch(`${API_URL}/executive-scan`, { method: 'POST' });
                     const data = await res.json();
                     this.currentScanId = data.scan_id;
+                    this.scanStatus = 'RUNNING';
                     router.go('terminal');
                 } catch (e) { console.error("Executive Scan Failed", e); }
             },
@@ -388,20 +395,67 @@
 
             renderPatchLab(el) {
                 const v = pipelineState.vulnerabilities.find(i => i.id === pipelineState.activeVulnId);
-                if (!v) { el.innerHTML = `<div class="p-8 text-center text-slate-500">Select a vulnerability from registry first.</div>`; return; }
+                if (!v) {
+                    el.innerHTML = `
+                        <div class="flex flex-col items-center justify-center h-full text-center">
+                            <i data-lucide="file-search" class="w-16 h-16 text-slate-700 mb-4"></i>
+                            <div class="text-slate-500 text-lg font-bold">No Vulnerability Selected</div>
+                            <div class="text-slate-600 text-sm mt-2">Navigate to Vulnerabilities tab and click "Review Fix" to analyze patches.</div>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                    return;
+                }
+
+                // Handle diff display - show proper message if not generated yet
+                let diffContent = v.diff;
+                if (!diffContent || diffContent.trim() === '' || diffContent === 'null') {
+                    if (v.status === 'DETECTED') {
+                        diffContent = '// Click "Generate Patch" in the Vulnerabilities tab first\n// to see the proposed fix here.';
+                    } else if (v.status === 'PATCHED') {
+                        diffContent = v.suggested_fix || '// Patch generated but diff not available\n// You can still validate this fix.';
+                    } else {
+                        diffContent = '// No patch data available';
+                    }
+                }
 
                 el.innerHTML = `
-                <div class="grid grid-cols-2 gap-6 h-full">
-                    <div class="glass rounded-xl p-4 flex flex-col">
-                        <div class="text-xs font-bold text-red-500 mb-2 uppercase flex justify-between"><span>Vulnerable Code</span> <span>Score: ${v.risk_score}</span></div>
-                        <pre class="bg-black/50 p-4 rounded text-red-100 font-mono text-xs overflow-auto flex-1">${v.code_snippet}</pre>
+                <div class="flex flex-col h-full">
+                    <div class="mb-4">
+                        <h3 class="text-xl font-bold text-white mb-1">Security Patch Analysis</h3>
+                        <p class="text-slate-500 text-xs">Review and validate the proposed remediation for vulnerability <span class="text-blue-400 font-mono">${v.id}</span></p>
                     </div>
-                    <div class="glass rounded-xl p-4 flex flex-col border border-emerald-500/20">
-                        <div class="text-xs font-bold text-emerald-500 mb-2 uppercase flex justify-between"><span>Proposed Remediation</span> <span>Confidence: ${v.confidence_score * 100}%</span></div>
-                        <pre class="bg-black/50 p-4 rounded text-emerald-100 font-mono text-xs overflow-auto flex-1">${v.diff || 'Generating...'}</pre>
-                        
-                        <div class="mt-4 flex gap-4">
-                            ${v.status === 'PATCHED' ? `<button onclick="app.validatePatch('${v.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded">Validate & Apply Fix</button>` : '<div class="p-3 w-full text-center text-emerald-500 font-bold border border-emerald-500/30 rounded">FIX APPLIED & VALIDATED</div>'}
+                    <div class="grid grid-cols-2 gap-6 flex-1">
+                        <div class="glass rounded-xl p-4 flex flex-col">
+                            <div class="text-xs font-bold text-red-500 mb-2 uppercase flex justify-between">
+                                <span>🔴 Vulnerable Code</span> 
+                                <span>Risk: ${v.risk_score}/10</span>
+                            </div>
+                            <div class="text-[10px] text-slate-600 mb-2">
+                                <span class="text-slate-500">File:</span> <span class="text-slate-400 font-mono">${v.file_name}</span> 
+                                <span class="text-slate-500 ml-2">Line:</span> <span class="text-slate-400 font-mono">${v.line_number}</span>
+                            </div>
+                            <pre class="bg-black/50 p-4 rounded text-red-100 font-mono text-xs overflow-auto flex-1">${v.code_snippet || '// No code snippet available'}</pre>
+                        </div>
+                        <div class="glass rounded-xl p-4 flex flex-col border border-emerald-500/20">
+                            <div class="text-xs font-bold text-emerald-500 mb-2 uppercase flex justify-between">
+                                <span>✅ Proposed Remediation</span> 
+                                <span>Confidence: ${Math.round((v.confidence_score || 0) * 100)}%</span>
+                            </div>
+                            <div class="text-[10px] text-slate-600 mb-2">
+                                <span class="text-slate-500">Type:</span> <span class="text-emerald-400 font-mono">${v.vulnerability_type}</span>
+                                <span class="text-slate-500 ml-2">Severity:</span> <span class="text-orange-400 font-mono">${v.severity}</span>
+                            </div>
+                            <pre class="bg-black/50 p-4 rounded text-emerald-100 font-mono text-xs overflow-auto flex-1">${diffContent}</pre>
+                            
+                            <div class="mt-4 flex gap-4">
+                                ${v.status === 'DETECTED' ?
+                        `<button onclick="app.generatePatch('${v.id}')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-all">Generate Patch First</button>` :
+                        v.status === 'PATCHED' ?
+                            `<button onclick="app.validatePatch('${v.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded transition-all">Validate & Apply Fix</button>` :
+                            '<div class="p-3 w-full text-center text-emerald-500 font-bold border border-emerald-500/30 rounded">✓ FIX APPLIED & VALIDATED</div>'
+                    }
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -636,16 +690,27 @@
                 const sites = pipelineState.availableWebsites.map(s => `
                     <div class="glass p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all flex flex-col justify-between">
                         <div>
-                            <div class="flex items-center gap-3 mb-4">
+                            <div class="flex items-center gap-3 mb-3">
                                 <div class="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center text-blue-500">
                                     <i data-lucide="globe" class="w-5 h-5"></i>
                                 </div>
-                                <h4 class="text-white font-bold leading-tight">${s.name}</h4>
+                                <h4 class="text-white font-bold leading-tight text-sm">${s.name}</h4>
                             </div>
-                            <div class="text-[10px] font-mono text-slate-500 mb-6 truncate">${s.url}</div>
+                            <div class="bg-slate-900/50 rounded-lg p-3 mb-4 border border-slate-800">
+                                <div class="text-[9px] text-slate-600 uppercase font-bold mb-1">Target URL</div>
+                                <div class="flex items-center gap-2">
+                                    <input type="text" value="${s.url}" readonly 
+                                        class="flex-1 bg-transparent text-[11px] font-mono text-blue-400 outline-none select-all cursor-pointer" 
+                                        onclick="this.select()" 
+                                        title="Click to select and copy"/>
+                                    <button onclick="navigator.clipboard.writeText('${s.url}'); this.innerHTML='✓'; setTimeout(() => this.innerHTML='📋', 1000)" 
+                                        class="text-slate-500 hover:text-blue-400 text-xs transition-all" 
+                                        title="Copy URL">📋</button>
+                                </div>
+                            </div>
                         </div>
                         <button onclick="pipelineState.scanPredefinedWebsite('${s.id}')"
-                            class="w-full bg-slate-800 hover:bg-blue-600 text-white font-bold py-2 rounded-lg text-xs transition-all flex items-center justify-center gap-2">
+                            class="w-full bg-slate-800 hover:bg-blue-600 text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center gap-2">
                             <i data-lucide="zap" class="w-3 h-3"></i> Initialize Audit
                         </button>
                     </div>
