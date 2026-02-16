@@ -117,6 +117,8 @@
             feedbackData: {},
             terminalLogs: [],
             availableWebsites: [],
+            currentScanId: 'default',
+            scanStatus: 'COMPLETED',
             activeVulnId: null,
 
             async fetchAll() {
@@ -148,9 +150,10 @@
 
             async fetchTerminal() {
                 try {
-                    const res = await fetch(`${API_URL}/terminal-stream`);
+                    const res = await fetch(`${API_URL}/terminal-stream?session_id=${this.currentScanId}`);
                     const data = await res.json();
                     this.terminalLogs = data.logs || [];
+                    this.scanStatus = data.status || 'COMPLETED';
                     if (router.current === 'terminal') app.render();
                 } catch (e) { console.error("Terminal Sync Error", e); }
             },
@@ -158,25 +161,35 @@
             async scanWebsite(url) {
                 console.log("[ACTION] Scan Website:", url);
                 try {
-                    router.go('terminal');
                     const res = await fetch(`${API_URL}/scan-website`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ url })
                     });
                     const data = await res.json();
-                    this.vulnerabilities = data;
-                    await this.fetchAll();
+                    this.currentScanId = data.scan_id;
+                    router.go('terminal');
                 } catch (e) { console.error("Web Scan Failed", e); }
             },
 
             async scanPredefinedWebsite(id) {
                 console.log("[ACTION] Predefined Scan:", id);
                 try {
-                    router.go('terminal');
                     const res = await fetch(`${API_URL}/scan-website/${id}`, { method: 'POST' });
-                    await this.fetchAll();
+                    const data = await res.json();
+                    this.currentScanId = data.scan_id;
+                    router.go('terminal');
                 } catch (e) { console.error("Predefined Scan Failed", e); }
+            },
+
+            async executiveScan() {
+                console.log("[ACTION] Executive Scan Started");
+                try {
+                    const res = await fetch(`${API_URL}/executive-scan`, { method: 'POST' });
+                    const data = await res.json();
+                    this.currentScanId = data.scan_id;
+                    router.go('terminal');
+                } catch (e) { console.error("Executive Scan Failed", e); }
             },
 
             async executeScan() {
@@ -185,10 +198,8 @@
                     const res = await fetch(`${API_URL}/scan`, { method: 'POST' });
                     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                     const data = await res.json();
-                    this.scanId = data.scan_id;
-                    this.vulnerabilities = data.vulnerabilities || [];
-                    await this.fetchAll();
-                    router.go('vulnerabilities');
+                    this.currentScanId = data.scan_id;
+                    router.go('terminal');
                 } catch (e) {
                     console.error("Scan Failed:", e);
                     alert(`Scan failed: ${e.message}`);
@@ -641,6 +652,16 @@
                 `).join('');
 
                 el.innerHTML = `
+                    <div class="flex justify-between items-center mb-8">
+                        <div>
+                            <h3 class="text-xl font-bold text-white">Target Registry</h3>
+                            <p class="text-slate-500 text-xs">Select a pre-connected application for deep security analysis.</p>
+                        </div>
+                        <button onclick="pipelineState.executiveScan()" 
+                            class="bg-rose-600 hover:bg-rose-500 text-white font-bold px-6 py-3 rounded-xl shadow-lg shadow-rose-900/40 flex items-center gap-2 transition-all">
+                            <i data-lucide="shield-alert" class="w-5 h-5"></i> EXECUTIVE SCAN (ALL)
+                        </button>
+                    </div>
                     <div class="grid grid-cols-4 gap-6">
                         ${sites || '<div class="col-span-4 text-center py-20 text-slate-500">Loading website registry...</div>'}
                     </div>

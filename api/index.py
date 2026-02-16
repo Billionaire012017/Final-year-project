@@ -1,10 +1,6 @@
 import os
 import sys
-import datetime
-import random
-import ast
-import regex as re
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.responses import HTMLResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -14,16 +10,31 @@ from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.sql import func
 import requests
 from bs4 import BeautifulSoup
+import uuid
+import datetime
+import random
+import ast
+import regex as re
 
-# --- GLOBAL LOGS ---
-TERMINAL_LOGS = []
+# --- GLOBAL LOGS & SESSIONS ---
+terminal_sessions = {}
 
-def add_log(msg):
+def append_log(session_id, msg):
+    if session_id not in terminal_sessions:
+        terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
+    
     timestamp = datetime.datetime.now().strftime("%H:%M:%S")
-    lvl = "[INFO]" if "eval" not in msg.lower() and "detected" not in msg.lower() else "[WARNING]"
-    if "completed" in msg.lower() or "success" in msg.lower(): lvl = "[SUCCESS]"
-    TERMINAL_LOGS.append(f"{lvl} [{timestamp}] {msg}")
-    if len(TERMINAL_LOGS) > 50: TERMINAL_LOGS.pop(0)
+    lvl = "[INFO]"
+    msg_lower = msg.lower()
+    if any(x in msg_lower for x in ["eval", "detected", "error", "critical", "warning"]):
+        lvl = "[WARNING]"
+    if "critical" in msg_lower or "[error]" in msg_lower:
+        lvl = "[ERROR]"
+    if any(x in msg_lower for x in ["completed", "success"]):
+        lvl = "[SUCCESS]"
+        
+    log_entry = f"{lvl} [{timestamp}] {msg}"
+    terminal_sessions[session_id]["logs"].append(log_entry)
 
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -156,19 +167,26 @@ def get_available_websites():
     return {"websites": PREDEFINED_WEBSITES}
 
 @app.get("/terminal-stream")
-def terminal_stream():
-    return {"logs": TERMINAL_LOGS}
+def terminal_stream(session_id: str = "default"):
+    session = terminal_sessions.get(session_id, {"logs": [], "status": "COMPLETED"})
+    return session
 
 @app.post("/scan")
-def execute_scan():
-    add_log("Starting filesystem scan...")
+def execute_scan(background_tasks: BackgroundTasks):
+    session_id = str(uuid.uuid4())
+    terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
+    background_tasks.add_task(run_filesystem_scan, session_id)
+    return {"scan_id": session_id}
+
+def run_filesystem_scan(session_id: str):
+    append_log(session_id, "Starting filesystem scan...")
     db = SessionLocal()
     
     # Create new session
-    session = ScanSession(total_files_scanned=0, total_vulnerabilities=0, overall_risk_score=0)
-    db.add(session)
+    scan_session = ScanSession(total_files_scanned=0, total_vulnerabilities=0, overall_risk_score=0)
+    db.add(scan_session)
     db.commit()
-    db.refresh(session)
+    db.refresh(scan_session)
     
     detected_vulns = []
     files_scanned = 0
@@ -184,7 +202,7 @@ def execute_scan():
                     
                     found = scan_file_content(content, file)
                     for v in found:
-                        add_log(f"Vulnerability detected in {file}: {v['vulnerability_type']}")
+                        append_log(session_id, f"Vulnerability detected in {file}: {v['vulnerability_type']}")
                         # Check for existing duplicate (file + line + type)
                         existing = db.query(Vulnerability).filter(
                             Vulnerability.file_name == v["file_name"],
@@ -193,76 +211,91 @@ def execute_scan():
                         ).first()
                         
                         if existing:
-                            # Update existing vuln session link
-                            existing.scan_session_id = session.id
+                            existing.scan_session_id = scan_session.id
                             detected_vulns.append(existing)
                         else:
-                            # Create new
-                            db_vuln = Vulnerability(**v, scan_session_id=session.id)
+                            db_vuln = Vulnerability(**v, scan_session_id=scan_session.id)
                             db.add(db_vuln)
                             detected_vulns.append(db_vuln)
     
-    add_log(f"Scan session {session.id} finished. Found {len(detected_vulns)} issues.")
+    append_log(session_id, f"Scan session {scan_session.id} finished. Found {len(detected_vulns)} issues.")
     
     # Update Session Stats
     total_risk = sum(v.risk_score for v in detected_vulns)
-    session.total_files_scanned = files_scanned
-    session.total_vulnerabilities = len(detected_vulns)
-    session.overall_risk_score = total_risk
+    scan_session.total_files_scanned = files_scanned
+    scan_session.total_vulnerabilities = len(detected_vulns)
+    scan_session.overall_risk_score = total_risk
     
     db.commit()
-    db.refresh(session)
-    
-    sid = session.id
-    count = len(detected_vulns)
-    
-    serialized_vulns = []
-    for v in detected_vulns:
-        serialized_vulns.append({
-            "id": v.id,
-            "file_name": v.file_name,
-            "line_number": v.line_number,
-            "vulnerability_type": v.vulnerability_type,
-            "severity": v.severity,
-            "code_snippet": v.code_snippet,
-            "status": v.status,
-            "risk_score": v.risk_score
-        })
-    
     db.close()
-    return {"scan_id": sid, "total_vulnerabilities": count, "vulnerabilities": serialized_vulns}
+    terminal_sessions[session_id]["status"] = "COMPLETED"
 
 @app.post("/scan-website/{website_id}")
-def scan_predefined_website(website_id: str):
+def scan_predefined_website(website_id: str, background_tasks: BackgroundTasks):
     site = next((s for s in PREDEFINED_WEBSITES if s["id"] == website_id), None)
     if not site:
         raise HTTPException(status_code=404, detail="Website not found in registry")
     
-    return scan_website_core(site["url"])
+    session_id = str(uuid.uuid4())
+    terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
+    background_tasks.add_task(scan_website_task, site["url"], session_id, site["name"])
+    return {"scan_id": session_id}
 
 @app.post("/scan-website")
-def scan_website_legacy(payload: dict):
+def scan_website_manual(payload: dict, background_tasks: BackgroundTasks):
     url = payload.get("url")
     if not url:
         raise HTTPException(status_code=400, detail="URL is required")
-    return scan_website_core(url)
+    
+    session_id = str(uuid.uuid4())
+    terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
+    background_tasks.add_task(scan_website_task, url, session_id, url)
+    return {"scan_id": session_id}
 
-def scan_website_core(url: str):
-    add_log(f"Connecting to URL: {url}")
-    add_log("[INFO] Fetching HTML content...")
+@app.post("/executive-scan")
+def executive_scan(background_tasks: BackgroundTasks):
+    session_id = "executive-" + str(uuid.uuid4())[:8]
+    terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
+    
+    # We'll run them in sequence in one background task
+    background_tasks.add_task(run_executive_scan_task, session_id)
+    return {"scan_id": session_id}
+
+def run_executive_scan_task(session_id: str):
+    append_log(session_id, "Initializing Executive Multi-Website Audit...")
+    for site in PREDEFINED_WEBSITES:
+        append_log(session_id, f"--- Starting audit for {site['name']} ---")
+        try:
+            scan_website_core(site["url"], session_id, site["name"])
+        except Exception as e:
+            append_log(session_id, f"[WARNING] Could not connect to {site['name']}: {str(e)}")
+    
+    append_log(session_id, "Executive Scan Completed.")
+    terminal_sessions[session_id]["status"] = "COMPLETED"
+
+def scan_website_task(url: str, session_id: str, app_name: str):
+    try:
+        scan_website_core(url, session_id, app_name)
+        append_log(session_id, "Scan Completed.")
+        terminal_sessions[session_id]["status"] = "COMPLETED"
+    except Exception as e:
+        append_log(session_id, f"[ERROR] Scan failed: {str(e)}")
+        terminal_sessions[session_id]["status"] = "COMPLETED"
+
+def scan_website_core(url: str, session_id: str, app_name: str):
+    append_log(session_id, f"Connecting to {app_name}...")
+    append_log(session_id, "Fetching HTML...")
     db = SessionLocal()
     
     try:
         response = requests.get(url, timeout=10)
         soup = BeautifulSoup(response.text, 'html.parser')
-        add_log("[INFO] HTML Parsing complete.")
+        append_log(session_id, "Parsing scripts...")
         
         detected_vulns = []
         
         # 1. Scan Inline Scripts
         scripts = soup.find_all('script')
-        add_log(f"[INFO] Analyizing {len(scripts)} script blocks...")
-        
         for i, script in enumerate(scripts):
             content = script.string if script.string else ""
             if not content: continue
@@ -276,31 +309,27 @@ def scan_website_core(url: str):
                 if "eval(" in stripped:
                     v_type = "Unsafe Eval Execution"
                     risk = 10.0
-                    add_log(f"[WARNING] eval() detected in script tag {i}")
                 elif "innerHTML" in stripped and "=" in stripped:
                     v_type = "Potential XSS via innerHTML"
                     risk = 7.0
-                    add_log(f"[WARNING] innerHTML assignment detected in script {i}")
                 elif "document.write(" in stripped:
                     v_type = "Unsafe document.write usage"
                     risk = 6.0
-                    add_log(f"[WARNING] document.write detected in script {i}")
                 
                 if v_type:
+                    append_log(session_id, f"[ERROR] {app_name} | Line {line_num+1} | {v_type}")
                     # Deduplication
                     existing = db.query(Vulnerability).filter(
-                        Vulnerability.file_name == url,
+                        Vulnerability.file_name == app_name,
                         Vulnerability.line_number == line_num + 1,
                         Vulnerability.vulnerability_type == v_type
                     ).first()
                     
-                    if existing:
-                        detected_vulns.append(existing)
-                    else:
+                    if not existing:
                         v_id = f"WEB-{random.randint(10000, 99999)}"
                         db_vuln = Vulnerability(
                             id=v_id,
-                            file_name=url,
+                            file_name=app_name,
                             line_number=line_num + 1,
                             vulnerability_type=v_type,
                             severity="HIGH" if risk > 7 else "MEDIUM",
@@ -313,25 +342,22 @@ def scan_website_core(url: str):
 
         # 2. Scan Forms
         forms = soup.find_all('form')
-        add_log(f"[INFO] Auditing {len(forms)} form structures...")
         for form in forms:
             inputs = form.find_all('input')
             for inp in inputs:
                 if inp.get('type') == 'text' or not inp.get('type'):
                     v_type = "Unsanitized Web Form Input"
-                    v_id = f"WEB-{random.randint(10000, 99999)}"
-                    
                     existing = db.query(Vulnerability).filter(
-                        Vulnerability.file_name == url,
+                        Vulnerability.file_name == app_name,
                         Vulnerability.vulnerability_type == v_type,
                         Vulnerability.code_snippet.contains(str(inp)[:50])
                     ).first()
                     
                     if not existing:
-                        add_log(f"[WARNING] Unsanitized input field detected: {inp.get('name', 'unnamed')}")
+                        append_log(session_id, f"[ERROR] {app_name} | Potential unsanitized input {inp.get('name', 'unnamed')}")
                         db_vuln = Vulnerability(
-                            id=v_id,
-                            file_name=url,
+                            id=f"WEB-{random.randint(10000, 99999)}",
+                            file_name=app_name,
                             line_number=0,
                             vulnerability_type=v_type,
                             severity="LOW",
@@ -342,31 +368,22 @@ def scan_website_core(url: str):
                         db.add(db_vuln)
                         detected_vulns.append(db_vuln)
 
-        db.commit()
-        add_log(f"[SUCCESS] Website scan completed for {url}")
-        
-        res = []
-        for v in detected_vulns:
-            res.append({
-                "id": v.id,
-                "file_name": v.file_name,
-                "line_number": v.line_number,
-                "vulnerability_type": v.vulnerability_type,
-                "severity": v.severity,
-                "status": v.status,
-                "risk_score": v.risk_score
-            })
-        db.close()
-        return {"scan_summary": {"url": url, "vulnerabilities_found": len(res)}, "vulnerabilities": res}
+        if not detected_vulns:
+            append_log(session_id, "[INFO] No critical pattern found.")
 
-    except Exception as e:
-        add_log(f"[ERROR] Scan failed: {str(e)}")
+        db.commit()
         db.close()
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        db.close()
+        raise e
 
 @app.get("/terminal-output")
-def get_terminal_output():
-    return {"logs": TERMINAL_LOGS}
+def get_terminal_output_legacy():
+    # Merge all logs for total history or just return default
+    all_logs = []
+    for s in terminal_sessions.values():
+        all_logs.extend(s["logs"])
+    return {"logs": all_logs[-50:]}
 
 @app.get("/vulnerabilities")
 def get_vulnerabilities():
