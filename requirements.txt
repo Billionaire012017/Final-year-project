@@ -9,4 +9,6 @@ python-multipart
 regex
 requests
 beautifulsoup4
+sqlalchemy
 gunicorn
+uvicorn
