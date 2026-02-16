@@ -178,7 +178,7 @@
             async scanPredefinedWebsite(id) {
                 console.log("[ACTION] Predefined Scan:", id);
                 try {
-                    const res = await fetch(`${API_URL}/scan-website/${id}`, { method: 'POST' });
+                    const res = await fetch(`${API_URL}/initialize-audit/${id}`, { method: 'POST' });
                     const data = await res.json();
                     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;

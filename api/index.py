@@ -192,16 +192,56 @@ def scan_file_content(content, filename, target_url="LOCAL_FILESYSTEM"):
 
 # --- PREDEFINED WEBSITES ---
 PREDEFINED_WEBSITES = [
-    {"id": "juice_shop", "name": "OWASP Juice Shop (Official Demo)", "url": "https://demo.owasp-juice.shop/"},
-    {"id": "altoro_mutual", "name": "Altoro Mutual Banking Demo (IBM Test Site)", "url": "http://demo.testfire.net/"},
-    {"id": "acunetix_testphp", "name": "Acunetix Test PHP Application", "url": "http://testphp.vulnweb.com/"},
-    {"id": "public_firing_range", "name": "Google Gruyere / Public Firing Range", "url": "https://public-firing-range.appspot.com/"},
-    {"id": "xss_game", "name": "Google XSS Game", "url": "https://xss-game.appspot.com/"},
-    {"id": "badstore", "name": "OWASP BadStore", "url": "http://badstore.net/"},
-    {"id": "zero_bank", "name": "Zero Bank Demo Application", "url": "http://zero.webappsecurity.com/"},
-    {"id": "vulnweb_api", "name": "VulnWeb REST API Demo", "url": "https://api.vulnweb.com/"},
-    {"id": "hackthissite", "name": "HackThisSite Training Platform", "url": "https://www.hackthissite.org/"},
-    {"id": "demo_login_app", "name": "Demo Login Test Application", "url": "https://the-internet.herokuapp.com/"}
+    {
+        "id": "juice_shop",
+        "name": "OWASP Juice Shop (Official Demo)",
+        "url": "https://demo.owasp-juice.shop/"
+    },
+    {
+        "id": "altoro_mutual",
+        "name": "Altoro Mutual Banking Demo (IBM Test Site)",
+        "url": "http://demo.testfire.net/"
+    },
+    {
+        "id": "acunetix_testphp",
+        "name": "Acunetix Test PHP Application",
+        "url": "http://testphp.vulnweb.com/"
+    },
+    {
+        "id": "public_firing_range",
+        "name": "Google Gruyere / Public Firing Range",
+        "url": "https://public-firing-range.appspot.com/"
+    },
+    {
+        "id": "xss_game",
+        "name": "Google XSS Game",
+        "url": "https://xss-game.appspot.com/"
+    },
+    {
+        "id": "badstore",
+        "name": "OWASP BadStore",
+        "url": "http://badstore.net/"
+    },
+    {
+        "id": "zero_bank",
+        "name": "Zero Bank Demo Application",
+        "url": "http://zero.webappsecurity.com/"
+    },
+    {
+        "id": "vulnweb_api",
+        "name": "VulnWeb REST API Demo",
+        "url": "https://api.vulnweb.com/"
+    },
+    {
+        "id": "hackthissite",
+        "name": "HackThisSite Training Platform",
+        "url": "https://www.hackthissite.org/"
+    },
+    {
+        "id": "demo_login_app",
+        "name": "Demo Login Test Application",
+        "url": "https://the-internet.herokuapp.com/"
+    }
 ]
 
 # --- ENDPOINTS ---
@@ -217,8 +257,11 @@ def get_available_websites():
     return {"websites": PREDEFINED_WEBSITES}
 
 @app.get("/terminal-stream")
-def terminal_stream(session_id: str = "default"):
-    session = terminal_sessions.get(session_id, {"logs": [], "status": "COMPLETED"})
+@app.get("/terminal-stream/{scan_id}")
+def terminal_stream(scan_id: str = None, session_id: str = "default"):
+    # Priority to path param scan_id, fall back to query param session_id
+    sid = scan_id or session_id
+    session = terminal_sessions.get(sid, {"logs": [], "status": "COMPLETED"})
     return session
 
 @app.post("/scan")
@@ -279,6 +322,99 @@ def run_filesystem_scan(session_id: str):
     db.commit()
     db.close()
     terminal_sessions[session_id]["status"] = "COMPLETED"
+
+@app.post("/initialize-audit/{website_id}")
+def initialize_audit(website_id: str, background_tasks: BackgroundTasks):
+    site = next((s for s in PREDEFINED_WEBSITES if s["id"] == website_id), None)
+    if not site:
+        raise HTTPException(status_code=404, detail="Website not found in registry")
+    
+    scan_id = str(uuid.uuid4())
+    terminal_sessions[scan_id] = {
+        "logs": [],
+        "status": "RUNNING",
+        "website_id": website_id
+    }
+    
+    background_tasks.add_task(run_website_audit, scan_id, website_id)
+    return {"scan_id": scan_id, "status": "STARTED"}
+
+def run_website_audit(scan_id: str, website_id: str):
+    site = next((s for s in PREDEFINED_WEBSITES if s["id"] == website_id), None)
+    if not site:
+        terminal_sessions[scan_id]["status"] = "COMPLETED"
+        return
+
+    append_log(scan_id, f"Initializing audit for {site['name']}...")
+    append_log(scan_id, f"Connecting to {site['url']}...")
+    
+    db = SessionLocal()
+    try:
+        response = requests.get(site["url"], timeout=10)
+        append_log(scan_id, "Parsing content...")
+        
+        soup = BeautifulSoup(response.text, 'html.parser')
+        detected_count = 0
+        
+        # Script tags + inline JS
+        scripts = soup.find_all('script')
+        for script in scripts:
+            content = script.string if script.string else ""
+            if not content: continue
+            
+            lines = content.split('\n')
+            for line_num, line in enumerate(lines):
+                stripped = line.strip()
+                v_type = None
+                risk = 0.0
+                
+                if "eval(" in stripped:
+                    v_type = "EVAL_INJECTION"
+                    risk = 10.0
+                elif "innerHTML" in stripped and "=" in stripped:
+                    v_type = "DOM_XSS"
+                    risk = 7.0
+                elif "document.write(" in stripped:
+                    v_type = "DOM_XSS"
+                    risk = 6.0
+                
+                if v_type and v_type in ALLOWED_VULN_TYPES:
+                    # Prevent duplicates
+                    existing = db.query(Vulnerability).filter(
+                        Vulnerability.file_name == site["name"],
+                        Vulnerability.line_number == line_num + 1,
+                        Vulnerability.vulnerability_type == v_type
+                    ).first()
+                    
+                    if not existing:
+                        append_log(scan_id, f"{site['name']} | Line {line_num+1} | {v_type}", level="ERROR")
+                        remediation = get_remediation_info(v_type, stripped)
+                        db_vuln = Vulnerability(
+                            id=f"WEB-{random.randint(10000, 99999)}",
+                            file_name=site["name"],
+                            line_number=line_num + 1,
+                            vulnerability_type=v_type,
+                            severity="HIGH" if risk > 7 else "MEDIUM",
+                            code_snippet=stripped,
+                            risk_score=risk,
+                            target_url=site["url"],
+                            suggested_fix=remediation["suggested_fix"],
+                            diff=remediation["diff"],
+                            status="DETECTED"
+                        )
+                        db.add(db_vuln)
+                        detected_count += 1
+
+        if detected_count == 0:
+            append_log(scan_id, "No critical vulnerabilities detected.", level="SUCCESS")
+        
+        append_log(scan_id, "Audit Completed Successfully.", level="SUCCESS")
+        db.commit()
+    except Exception as e:
+        append_log(scan_id, f"Connection failed or error occurred: {str(e)}", level="WARNING")
+    finally:
+        db.close()
+        terminal_sessions[scan_id]["status"] = "COMPLETED"
 
 @app.post("/scan-website/{website_id}")
 def scan_predefined_website(website_id: str, background_tasks: BackgroundTasks):
