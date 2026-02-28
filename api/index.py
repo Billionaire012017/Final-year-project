@@ -15,9 +15,50 @@ import datetime
 import random
 import ast
 import regex as re
+import threading
 
 # --- GLOBAL LOGS & SESSIONS ---
 terminal_sessions = {}
+scan_queue = []
+active_scan = None
+
+def process_queue():
+    global active_scan
+    if active_scan is not None:
+        return
+    if len(scan_queue) == 0:
+        return
+    
+    job = scan_queue.pop(0)
+    job["status"] = "RUNNING"
+    active_scan = job
+    
+    thread = threading.Thread(target=run_scan_job, args=(job,))
+    thread.start()
+
+def run_scan_job(job):
+    global active_scan
+    scan_id = job["scan_id"]
+    
+    if scan_id in terminal_sessions:
+        terminal_sessions[scan_id]["status"] = "RUNNING"
+        
+    append_log(scan_id, "[INFO] Job started.")
+    
+    try:
+        if job["type"] == "website":
+            run_website_audit(scan_id, job["website_id"])
+        elif job["type"] == "executive":
+            run_executive_scan_task(scan_id)
+    except Exception as e:
+        append_log(scan_id, f"Job failed: {str(e)}", level="ERROR")
+    finally:
+        append_log(scan_id, "[SUCCESS] Job completed.")
+        job["status"] = "COMPLETED"
+        if scan_id in terminal_sessions:
+            terminal_sessions[scan_id]["status"] = "COMPLETED"
+        active_scan = None
+        process_queue()
 
 def append_log(session_id, msg, level="INFO"):
     if session_id not in terminal_sessions:
@@ -324,7 +365,7 @@ def run_filesystem_scan(session_id: str):
     terminal_sessions[session_id]["status"] = "COMPLETED"
 
 @app.post("/initialize-audit/{website_id}")
-def initialize_audit(website_id: str, background_tasks: BackgroundTasks):
+def initialize_audit(website_id: str):
     site = next((s for s in PREDEFINED_WEBSITES if s["id"] == website_id), None)
     if not site:
         raise HTTPException(status_code=404, detail="Website not found in registry")
@@ -332,12 +373,22 @@ def initialize_audit(website_id: str, background_tasks: BackgroundTasks):
     scan_id = str(uuid.uuid4())
     terminal_sessions[scan_id] = {
         "logs": [],
-        "status": "RUNNING",
+        "status": "QUEUED",
         "website_id": website_id
     }
     
-    background_tasks.add_task(run_website_audit, scan_id, website_id)
-    return {"scan_id": scan_id, "status": "STARTED"}
+    job = {
+        "scan_id": scan_id,
+        "type": "website",
+        "website_id": website_id,
+        "status": "QUEUED"
+    }
+    scan_queue.append(job)
+    append_log(scan_id, "[INFO] Job added to queue.")
+    
+    process_queue()
+    
+    return {"scan_id": scan_id, "status": "QUEUED"}
 
 def run_website_audit(scan_id: str, website_id: str):
     site = next((s for s in PREDEFINED_WEBSITES if s["id"] == website_id), None)
@@ -439,11 +490,28 @@ def scan_website_manual(payload: dict, background_tasks: BackgroundTasks):
     return {"scan_id": session_id}
 
 @app.post("/executive-scan")
-def executive_scan(background_tasks: BackgroundTasks):
+def executive_scan():
     session_id = "executive-" + str(uuid.uuid4())[:8]
-    terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
-    background_tasks.add_task(run_executive_scan_task, session_id)
-    return {"scan_id": session_id}
+    terminal_sessions[session_id] = {"logs": [], "status": "QUEUED"}
+    
+    job = {
+        "scan_id": session_id,
+        "type": "executive",
+        "status": "QUEUED"
+    }
+    scan_queue.append(job)
+    append_log(session_id, "[INFO] Job added to queue.")
+    
+    process_queue()
+    
+    return {"scan_id": session_id, "status": "QUEUED"}
+
+@app.get("/queue-status")
+def get_queue_status():
+    return {
+        "active_scan": active_scan,
+        "pending_jobs": scan_queue
+    }
 
 def run_executive_scan_task(session_id: str):
     append_log(session_id, "Initializing Executive Multi-Website Audit...")
