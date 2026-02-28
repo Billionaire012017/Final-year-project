@@ -74,7 +74,7 @@ def append_log(session_id, msg, level="INFO"):
 
 # --- CONFIGURATION ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(BASE_DIR)
+PROJECT_ROOT = BASE_DIR
 DB_PATH = os.path.join(PROJECT_ROOT, "vulnerabilities_enforced.db")
 TEST_DATA_DIR = os.path.join(PROJECT_ROOT, "test_data")
 
@@ -304,6 +304,9 @@ PREDEFINED_WEBSITES = [
 @app.get("/", response_class=HTMLResponse)
 def read_root():
     path = os.path.join(BASE_DIR, "index.html")
+    if not os.path.exists(path):
+        # Fallback if somehow moved
+        return HTMLResponse(content="<h1>Index.html not found at root</h1>", status_code=404)
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
