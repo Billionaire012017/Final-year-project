@@ -120,14 +120,28 @@ class Feedback(Base):
 Base.metadata.create_all(bind=engine)
 
 # --- FASTAPI APP ---
+APP_VERSION = "v2.0-queue-enabled"
+print(f"🔥 DEPLOYED VERSION {APP_VERSION} 🔥")
+
 app = FastAPI(title="SecLAB Centralized Pipeline")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def no_cache(request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+@app.get("/version")
+def get_version():
+    return {"version": APP_VERSION}
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request, exc):
