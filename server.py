@@ -1088,4 +1088,5 @@ def get_feedback():
 if __name__ == "__main__":
     import uvicorn
     port = int(os.environ.get("PORT", 8000))
+    print(f"🔥 SEC-LAB PIPELINE STARTING ON PORT: {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
