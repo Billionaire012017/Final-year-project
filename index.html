@@ -118,20 +118,25 @@
 
             async fetchAll() {
                 try {
-                    const [dash, vulns, sys, comp, feed] = await Promise.all([
-                        fetch(`${API_URL}/dashboard`).then(r => r.json()),
+                    const [vulns, dash, comp, core, sites, pipe] = await Promise.all([
                         fetch(`${API_URL}/vulnerabilities`).then(r => r.json()),
-                        fetch(`${API_URL}/system-core`).then(r => r.json()),
+                        fetch(`${API_URL}/dashboard`).then(r => r.json()),
                         fetch(`${API_URL}/compliance`).then(r => r.json()),
-                        fetch(`${API_URL}/feedback`).then(r => r.json())
+                        fetch(`${API_URL}/system-core`).then(r => r.json()),
+                        fetch(`${API_URL}/available-websites`).then(r => r.json()),
+                        fetch(`${API_URL}/pipeline/status`).then(r => r.json())
                     ]);
-                    this.metrics = dash;
                     this.vulnerabilities = vulns;
-                    this.systemCore = sys;
+                    this.metrics = dash;
                     this.complianceData = comp;
-                    this.feedbackData = feed;
-                    app.render();
-                } catch (e) { console.error("Pipeline Sync Error", e); }
+                    this.systemCore = core;
+                    this.availableWebsites = sites.websites || [];
+                    this.paused = pipe.paused;
+                    this.activeJob = pipe.active;
+                    this.queue = pipe.queue;
+
+                    if (router.current !== 'terminal') app.render();
+                } catch (e) { console.error("Sync Error", e); }
             },
 
             async fetchWebsites() {
@@ -297,8 +302,9 @@
                 router.go('dashboard');
                 pipelineState.executeScan();
                 pipelineState.fetchWebsites();
-                setInterval(() => pipelineState.fetchAll(), 1500); // Faster polling
-                setInterval(() => pipelineState.fetchTerminal(), 1000); // Scan terminal faster
+                // Professional Sync: High-frequency polling for real-time feel
+                setInterval(() => pipelineState.fetchAll(), 800);
+                setInterval(() => pipelineState.fetchTerminal(), 800);
             },
 
             async executeScan() {

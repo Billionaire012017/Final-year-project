@@ -374,8 +374,10 @@ def scan_file_content(content, filename, target_url="LOCAL_FILESYSTEM"):
             risk = 8.0
             
         if v_type and v_type in ALLOWED_VULN_TYPES:
-            remediation = get_remediation_info(v_type, stripped)
-            vulns.append({
+            # High-Accuracy: Only detect if actually dangerous
+            if not validate_patch_logic(v_type, stripped):
+                remediation = get_remediation_info(v_type, stripped)
+                vulns.append({
                 "id": f"VULN-{random.randint(10000, 99999)}",
                 "file_name": filename,
                 "line_number": line_num,
@@ -512,18 +514,31 @@ def run_filesystem_scan(session_id: str):
                         ).first()
                         
                         if existing:
-                            existing.scan_session_id = scan_session.id
-                            existing.last_scan_timestamp = datetime.datetime.utcnow()
-                            detected_vulns.append(existing)
-                        else:
-                            v_id = v["id"]
-                            db_vuln = Vulnerability(**v, scan_session_id=scan_session.id)
-                            db.add(db_vuln)
-                            db.commit() # Trigger queue
-                            detected_vulns.append(db_vuln)
+                            is_new = False
+                            # Handle existing vulnerabilities
+                            if existing.status == "FIXED":
+                                # Re-detect only if changed AND now unsafe
+                                if existing.code_snippet != v["code_snippet"] and not validate_patch_logic(v["vulnerability_type"], v["code_snippet"]):
+                                    is_new = True
+                            elif existing.status == "FAILED":
+                                is_new = True
+                            elif existing.status == "DETECTED" and existing.code_snippet != v["code_snippet"]:
+                                existing.code_snippet = v["code_snippet"]
+                                db.commit()
                             
-                            # Phase 8: Auto-queue for filesystem
-                            add_to_patch_queue(v_id)
+                            if not is_new:
+                                existing.scan_session_id = scan_session.id
+                                existing.last_scan_timestamp = datetime.datetime.utcnow()
+                                detected_vulns.append(existing)
+                                continue # Skip re-adding
+                        
+                        # If we reach here, it's a new or re-detected vulnerability
+                        v_id = v["id"]
+                        db_vuln = Vulnerability(**v, scan_session_id=scan_session.id)
+                        db.add(db_vuln)
+                        db.commit() # Trigger queue
+                        detected_vulns.append(db_vuln)
+                        add_to_patch_queue(v_id)
     
     if not detected_vulns:
         append_log(session_id, "No vulnerabilities detected in modules.", level="SUCCESS")
@@ -610,14 +625,29 @@ def run_website_audit(scan_id: str, website_id: str):
                     risk = 6.0
                 
                 if v_type and v_type in ALLOWED_VULN_TYPES:
-                    # Prevent duplicates
-                    existing = db.query(Vulnerability).filter(
-                        Vulnerability.file_name == site["name"],
-                        Vulnerability.line_number == line_num + 1,
-                        Vulnerability.vulnerability_type == v_type
-                    ).first()
+                    # High-Accuracy: Only detect if actually dangerous
+                    if not validate_patch_logic(v_type, stripped):
+                        # Prevent duplicates
+                        existing = db.query(Vulnerability).filter(
+                            Vulnerability.file_name == site["name"],
+                            Vulnerability.line_number == line_num + 1,
+                            Vulnerability.vulnerability_type == v_type
+                        ).first()
                     
+                    is_new = False
                     if not existing:
+                        is_new = True
+                    else:
+                        if existing.status == "FIXED":
+                            if existing.code_snippet != stripped and not validate_patch_logic(v_type, stripped):
+                                is_new = True
+                        elif existing.status == "FAILED":
+                            is_new = True
+                        elif existing.status == "DETECTED" and existing.code_snippet != stripped:
+                            existing.code_snippet = stripped
+                            db.commit()
+
+                    if is_new:
                         append_log(scan_id, f"{site['name']} | Line {line_num+1} | {v_type}", level="ERROR")
                         remediation = get_remediation_info(v_type, stripped)
                         db_vuln = Vulnerability(
@@ -772,6 +802,9 @@ def scan_website_core(url: str, session_id: str, app_name: str, scan_session_id:
                     risk = 6.0
                 
                 if v_type and v_type in ALLOWED_VULN_TYPES:
+                    # Professional Deduplication: Use pattern + location + content hash
+                    content_hash = hashlib.md5(stripped.encode()).hexdigest()[:8]
+                    
                     # Phase 2 & 6: Duplicate and FIXED check
                     existing = db.query(Vulnerability).filter(
                         Vulnerability.file_name == app_name,
@@ -781,13 +814,22 @@ def scan_website_core(url: str, session_id: str, app_name: str, scan_session_id:
                     
                     is_new = False
                     if not existing:
-                        is_new = True
-                    elif existing.status == "FIXED" and existing.code_snippet != stripped:
-                        # Re-detect if code changed
-                        is_new = True
-                    elif existing.status == "FAILED":
-                        # Retry if failed
-                        is_new = True
+                        # High-Accuracy: Only detect if actually dangerous
+                        if not validate_patch_logic(v_type, stripped):
+                            is_new = True
+                    else:
+                        # Handle existing vulnerabilities
+                        if existing.status == "FIXED":
+                            # Only re-detect if the code is now different AND unsafe
+                            # (prevents re-detecting the fix)
+                            if existing.code_snippet != stripped and not validate_patch_logic(v_type, stripped):
+                                is_new = True
+                        elif existing.status == "FAILED":
+                            is_new = True
+                        elif existing.status == "DETECTED" and existing.code_snippet != stripped:
+                            # Update snippet if changed but still unsafe
+                            existing.code_snippet = stripped
+                            db.commit()
                     
                     if is_new:
                         append_log(session_id, f"[INFO] Vulnerability detected: {v_type} at line {line_num+1}")
