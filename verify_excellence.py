@@ -31,9 +31,9 @@ def test_system_excellence():
     print("⚙ Starting Remediation...")
     requests.post(f"{BASE_URL}/pipeline/start")
     
-    # Wait for at least one fix
-    print("⏳ Waiting for automated patches to apply...")
-    time.sleep(5)
+    # Wait for at least one fix (realistic delay takes ~30s)
+    print("⏳ Waiting for automated patches to apply (Realistic Delay)...")
+    time.sleep(45)
     
     # 5. Re-run Scan to verify "No Re-detection of Fixed Code"
     print("📡 Re-running Executive Scan to verify guards...")
