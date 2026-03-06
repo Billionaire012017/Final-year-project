@@ -145,14 +145,20 @@
 
             async fetchTerminal() {
                 try {
-                    const res = await fetch(`${API_URL}/terminal-stream?session_id=${this.currentScanId}`);
-                    if (!res.ok) {
-                        const errData = await res.json();
-                        throw new Error(errData.detail || `HTTP ${res.status}`);
-                    }
-                    const data = await res.json();
-                    this.terminalLogs = data.logs || [];
-                    this.scanStatus = data.status || 'COMPLETED';
+                    // Fetch both current scan logs AND pipeline automation logs
+                    const [scanRes, pipeRes] = await Promise.all([
+                        fetch(`${API_URL}/terminal-stream?session_id=${this.currentScanId}`),
+                        fetch(`${API_URL}/terminal-stream?session_id=pipeline`)
+                    ]);
+
+                    const scanData = await scanRes.json();
+                    const pipeData = await pipeRes.json();
+
+                    // Combine or separate? Let's keep them separate but allow toggling
+                    this.terminalLogs = scanData.logs || [];
+                    this.pipelineLogs = pipeData.logs || [];
+                    this.scanStatus = scanData.status || 'COMPLETED';
+
                     if (router.current === 'terminal') app.render();
                 } catch (e) { console.error("Terminal Sync Error", e); }
             },
@@ -199,6 +205,7 @@
                     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
+                    alert("Executive Audit & Automated Remediation Pipeline Started!");
                     router.go('terminal');
                 } catch (e) {
                     console.error("Executive Scan Failed", e);
@@ -270,6 +277,7 @@
         };
 
         const app = {
+            terminalMode: 'scan',
             init() {
                 router.go('dashboard');
                 pipelineState.executeScan();
@@ -377,14 +385,18 @@
                                     class="text-[9px] text-slate-600 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all">📋</button>
                         </div>
                     </td>
-                    <td class="p-4 text-xs font-bold text-slate-300">
-                        <span class="${v.status === 'VALIDATED' ? 'text-emerald-400' : 'text-slate-300'}">${v.status}</span>
+                    <td class="p-4 text-xs font-bold font-mono">
+                        <span class="${v.status === 'FIXED' ? 'text-emerald-400' :
+                        v.status === 'FAILED' ? 'text-red-500' :
+                            v.status.includes('PATCH') || v.status.includes('QUEUE') ? 'text-blue-400 animate-pulse' :
+                                'text-slate-300'
+                    }">${v.status.replace(/_/g, ' ')}</span>
                     </td>
                     <td class="p-4">
                         <div class="flex gap-2">
-                            ${v.status === 'DETECTED' ? `<button onclick="app.generatePatch('${v.id}')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs font-bold transition-all">Generate Patch</button>` : ''}
-                            ${v.status === 'PATCHED' ? `<button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-amber-600 hover:bg-amber-500 px-3 py-1 rounded text-white text-xs font-bold transition-all">Review Fix</button>` : ''}
-                            ${v.status === 'VALIDATED' ? `<button onclick="app.submitFeedback('${v.id}')" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white text-xs font-bold transition-all">Feedback</button>` : ''}
+                            ${v.status === 'DETECTED' ? `<span class="text-[10px] text-slate-500 italic">Queueing...</span>` : ''}
+                            ${v.status.includes('PATCH') || v.status === 'FIXED' ? `<button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs font-bold transition-all">View Details</button>` : ''}
+                            ${v.status === 'VALIDATED' || v.status === 'FIXED' ? `<button onclick="app.submitFeedback('${v.id}')" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white text-xs font-bold transition-all">Feedback</button>` : ''}
                         </div>
                     </td>
                 </tr>
@@ -469,11 +481,11 @@
                             <pre class="bg-black/50 p-4 rounded text-emerald-100 font-mono text-xs overflow-auto flex-1">${diffContent}</pre>
                             
                             <div class="mt-4 flex gap-4">
-                                ${v.status === 'DETECTED' ?
-                        `<button onclick="app.generatePatch('${v.id}')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded transition-all">Generate Patch First</button>` :
-                        v.status === 'PATCHED' ?
-                            `<button onclick="app.validatePatch('${v.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded transition-all">Validate & Apply Fix</button>` :
-                            '<div class="p-3 w-full text-center text-emerald-500 font-bold border border-emerald-500/30 rounded">✓ FIX APPLIED & VALIDATED</div>'
+                                ${v.status === 'FIXED' ?
+                        '<div class="p-3 w-full text-center text-emerald-500 font-bold border border-emerald-500/30 rounded bg-emerald-500/10">✓ AUTOMATED FIX VALIDATED & APPLIED</div>' :
+                        v.status === 'FAILED' ?
+                            '<div class="p-3 w-full text-center text-red-500 font-bold border border-red-500/30 rounded bg-red-500/10">⚠ AUTOMATION FAILED (MAX RETRIES)</div>' :
+                            `<div class="p-3 w-full text-center text-blue-400 font-bold border border-blue-500/30 rounded animate-pulse">⚙ PROCESSING AUTOMATED REMEDIATION...</div>`
                     }
                             </div>
                         </div>
@@ -699,15 +711,15 @@
                 el.innerHTML = `
                     <div class="h-full flex flex-col bg-black rounded-xl border border-slate-800 overflow-hidden shadow-2xl">
                         <div class="bg-slate-900 px-4 py-2 border-b border-slate-800 flex items-center justify-between">
-                            <div class="flex items-center gap-2">
-                                <div class="w-3 h-3 rounded-full bg-red-500"></div>
-                                <div class="w-3 h-3 rounded-full bg-amber-500"></div>
-                                <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                            <div class="flex items-center gap-4">
+                                <button onclick="app.terminalMode='scan'" class="text-[10px] font-bold uppercase transition-all ${app.terminalMode === 'scan' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}">Scanner Output</button>
+                                <button onclick="app.terminalMode='pipeline'" class="text-[10px] font-bold uppercase transition-all ${app.terminalMode === 'pipeline' ? 'text-blue-500 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}">Automation Pipeline</button>
                             </div>
                             <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">SecLAB System Console</div>
                         </div>
-                        <div id="terminal-body" class="flex-1 p-6 overflow-y-auto custom-scrollbar font-mono">
-                            ${logs || '<div class="text-slate-700 font-mono text-xs animate-pulse">_ Waiting for system input...</div>'}
+                        <div id="terminal-body" class="flex-1 p-6 overflow-y-auto custom-scrollbar font-mono bg-black/80">
+                            ${app.terminalMode === 'scan' ? (logs || '<div class="text-slate-700 animate-pulse">_ Waiting for scan logs...</div>') :
+                        (pipelineState.pipelineLogs.map(l => `<div class="mb-1 font-mono text-[11px] flex gap-2"><span class="text-slate-600">[${l.timestamp}]</span> <span class="${l.level === 'SUCCESS' ? 'text-blue-400' : l.level === 'ERROR' ? 'text-red-500' : l.level === 'WARNING' ? 'text-amber-500' : 'text-slate-400'}">${l.message}</span></div>`).join('') || '<div class="text-slate-700 animate-pulse">_ Waiting for pipeline activity...</div>')}
                         </div>
                     </div>
                 `;

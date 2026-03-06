@@ -177,9 +177,10 @@ def get_remediation_info(v_type, original_code):
     
     # Specific remediation logic per vulnerability type
     if v_type == "EVAL_INJECTION":
-        # Example: eval(x) -> ast.literal_eval(x) or use a map
         if "eval(" in original_code:
-            fixed_code = original_code.replace("eval(", "ast.literal_eval(")
+            # Extract content inside eval()
+            inner = original_code.split("eval(", 1)[1].rsplit(")", 1)[0]
+            fixed_code = original_code.replace(f"eval({inner})", f"ast.literal_eval({inner})")
             suggested_fix = "Replaced eval() with ast.literal_eval() for safe literal parsing."
         else:
             fixed_code = "# Removed unsafe eval usage\npass"
@@ -187,30 +188,38 @@ def get_remediation_info(v_type, original_code):
 
     elif v_type == "EXEC_INJECTION":
         if "exec(" in original_code:
-            fixed_code = "pass # exec() removed for security"
+            inner = original_code.split("exec(", 1)[1].rsplit(")", 1)[0]
+            fixed_code = f"print('Restricted execution: {inner}') # exec() replaced"
             suggested_fix = "Remove dynamic execution (exec). Use static logic instead."
         else:
             fixed_code = "pass"
             suggested_fix = "Restricted dynamic code execution."
 
     elif v_type == "SQL_INJECTION":
-        # Simple regex to find common patterns like "SELECT ... + val"
-        if "+" in original_code or "%" in original_code:
-            fixed_code = "db.execute('SELECT * FROM users WHERE id = :id', {'id': user_id})"
+        if "name='" in original_code:
+            # unique fix for form input
+            fixed_code = f"# Parameterized query for {original_code}\nquery = 'SELECT * FROM users WHERE input_name = ?'; params = (input_val,)"
+            suggested_fix = "Use parameterized queries for form inputs."
+        elif "+" in original_code:
+            # unique fix for string concatenation
+            parts = original_code.split("+", 1)
+            fixed_code = f"{parts[0].strip()} = ?', ({parts[1].strip()})"
             suggested_fix = "Use parameterized queries to prevent SQL injection."
         else:
-            fixed_code = "pass # Sanitized input required"
+            fixed_code = "db.execute('QUERY WITH :param', {'param': value})"
             suggested_fix = "Input sanitization and parameterization applied."
 
     elif v_type == "DOM_XSS":
         if ".innerHTML" in original_code:
+            var_name = original_code.split(".innerHTML", 1)[0].split()[-1]
             fixed_code = original_code.replace(".innerHTML", ".textContent")
-            suggested_fix = "Used textContent instead of innerHTML to prevent script execution."
+            suggested_fix = f"Used textContent on {var_name} to prevent script execution."
         elif "document.write(" in original_code:
-            fixed_code = original_code.replace("document.write(", "console.log(")
-            suggested_fix = "Avoid document.write. Log or use safer DOM methods."
+            inner = original_code.split("document.write(", 1)[1].rsplit(")", 1)[0]
+            fixed_code = f"const safeDiv = document.createElement('div'); safeDiv.textContent = {inner}; document.body.appendChild(safeDiv);"
+            suggested_fix = "Avoid document.write. Append sanitized elements to DOM."
         else:
-            fixed_code = f"// Sanitized: {original_code}"
+            fixed_code = f"// Sanitized DOM access: {original_code[:30]}"
             suggested_fix = "Sanitized DOM manipulation."
 
     # Final cleanup of fixed code
@@ -770,10 +779,11 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                     
                     if not existing:
                         append_log(session_id, f"[ERROR] {app_name} | Unsanitized form input detected: {inp.get('name', 'unnamed')}", level="ERROR")
+                        v_id = f"WEB-{random.randint(10000, 99999)}"
                         snippet = f"Form input name='{inp.get('name', 'unnamed')}'"
                         remediation = get_remediation_info(v_type, snippet)
                         db_vuln = Vulnerability(
-                            id=f"WEB-{random.randint(10000, 99999)}",
+                            id=v_id,
                             file_name=app_name,
                             line_number=0,
                             vulnerability_type=v_type,
@@ -783,10 +793,16 @@ def scan_website_core(url: str, session_id: str, app_name: str):
                             target_url=url,
                             suggested_fix=remediation["suggested_fix"],
                             diff=remediation["diff"],
-                            status="DETECTED"
+                            patch_explanation=remediation.get("explanation"),
+                            status="DETECTED",
+                            last_scan_timestamp=datetime.datetime.utcnow()
                         )
                         db.add(db_vuln)
+                        db.commit()
                         detected_vulns.append(db_vuln)
+                        
+                        # Phase 8: Auto-queue for form inputs
+                        add_to_patch_queue(v_id)
 
         if not detected_vulns:
             append_log(session_id, "No vulnerabilities detected.", level="SUCCESS")
