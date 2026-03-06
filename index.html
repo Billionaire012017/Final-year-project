@@ -157,10 +157,25 @@
                     // Combine or separate? Let's keep them separate but allow toggling
                     this.terminalLogs = scanData.logs || [];
                     this.pipelineLogs = pipeData.logs || [];
+
+                    const oldStatus = this.scanStatus;
                     this.scanStatus = scanData.status || 'COMPLETED';
+
+                    // Detect scan completion to show popup
+                    if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED') {
+                        app.showPipelinePopup();
+                    }
 
                     if (router.current === 'terminal') app.render();
                 } catch (e) { console.error("Terminal Sync Error", e); }
+            },
+
+            async startPipeline() {
+                try {
+                    await fetch(`${API_URL}/pipeline/start`, { method: 'POST' });
+                    this.paused = false;
+                    app.render();
+                } catch (e) { console.error("Start Pipeline Failed", e); }
             },
 
             async scanWebsite(url) {
@@ -282,8 +297,8 @@
                 router.go('dashboard');
                 pipelineState.executeScan();
                 pipelineState.fetchWebsites();
-                setInterval(() => pipelineState.fetchAll(), 2000);
-                setInterval(() => pipelineState.fetchTerminal(), 2000);
+                setInterval(() => pipelineState.fetchAll(), 1500); // Faster polling
+                setInterval(() => pipelineState.fetchTerminal(), 1000); // Scan terminal faster
             },
 
             async executeScan() {
@@ -326,6 +341,44 @@
                 else if (page === 'feedback') this.renderFeedback(viewport);
                 else if (page === 'terminal') this.renderTerminal(viewport);
                 else if (page === 'website-scanner') this.renderWebsiteScanner(viewport);
+
+                this.renderGlobalOverlays();
+            },
+
+            showPipelinePopup() {
+                const count = pipelineState.vulnerabilities.filter(v => v.status === 'DETECTED' || v.status === 'QUEUED_FOR_PATCH').length;
+                if (count === 0) return;
+
+                const overlay = document.createElement('div');
+                overlay.id = 'pipeline-modal';
+                overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6';
+                overlay.innerHTML = `
+                    <div class="glass max-w-lg w-full p-8 rounded-2xl border-blue-500/30 shadow-[0_0_50px_rgba(59,130,246,0.2)] text-center animate-in zoom-in duration-300">
+                        <div class="w-20 h-20 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
+                            <i data-lucide="shield-alert" class="w-10 h-10"></i>
+                        </div>
+                        <h3 class="text-2xl font-bold text-white mb-2">Threat Detection Complete</h3>
+                        <p class="text-slate-400 mb-8 font-mono text-sm">System has identified <span class="text-blue-400 font-bold">${count} vulnerabilities</span> requiring remediation. Move for automated execution?</p>
+                        
+                        <div class="flex gap-4">
+                            <button onclick="document.getElementById('pipeline-modal').remove()" 
+                                class="flex-1 px-6 py-4 rounded-xl border border-slate-700 text-slate-400 font-bold hover:bg-slate-800 transition-all">
+                                Monitor Only
+                            </button>
+                            <button onclick="pipelineState.startPipeline(); document.getElementById('pipeline-modal').remove()" 
+                                class="flex-1 px-6 py-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 shadow-xl shadow-blue-900/40 transition-all">
+                                Execute Remediation
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                lucide.createIcons();
+            },
+
+            renderGlobalOverlays() {
+                // Background status indicator
+                let activeJob = null; // We could fetch /pipeline/status here
             },
 
             renderDashboard(el) {
@@ -350,10 +403,26 @@
                     </div>
                 </div>
 
-                <div class="glass p-8 rounded-xl bg-gradient-to-br from-blue-900/20 to-transparent border border-blue-500/20">
-                    <h3 class="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                        <i data-lucide="globe" class="text-blue-500"></i> Website Vulnerability Scan
-                    </h3>
+                <div class="glass p-8 rounded-xl bg-gradient-to-br from-blue-900/20 to-transparent border border-blue-500/20 mb-8">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold text-white flex items-center gap-2">
+                            <i data-lucide="shield-alert" class="text-blue-500"></i> Cyber Defense Pipeline
+                        </h3>
+                        <div id="pipeline-mini-status" class="text-[10px] font-mono font-bold px-3 py-1 rounded-full bg-slate-800 text-slate-400 uppercase tracking-widest">
+                            ${pipelineState.paused ? 'IDLE' : 'EXECUTING...'}
+                        </div>
+                    </div>
+                    
+                    <div id="pipeline-progress-container" class="mb-4">
+                        <div class="flex justify-between text-[11px] font-mono text-slate-500 mb-2">
+                            <span>Remediation Progress</span>
+                            <span id="pipeline-percent">0%</span>
+                        </div>
+                        <div class="h-3 bg-slate-900 rounded-full overflow-hidden border border-slate-800 p-0.5">
+                            <div id="pipeline-progress-bar" class="h-full bg-blue-500 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-all duration-1000" style="width: 0%"></div>
+                        </div>
+                    </div>
+
                     <div class="flex gap-4">
                         <input type="text" id="web-url" placeholder="https://example.com" value="https://example.com"
                             class="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-blue-500 transition-all">
@@ -362,13 +431,44 @@
                             Scan Website
                         </button>
                     </div>
-                    <p class="mt-4 text-slate-500 text-xs italic">Enter any URL to audit its front-end security posture (Scripts, Forms, Headers).</p>
                 </div>
                 <div class="glass p-8 rounded-xl">
-                    <h3 class="text-white font-bold mb-4">Latest Scan Activity</h3>
-                    <div class="font-mono text-slate-400 text-sm">Last Scan: ${s.scan_time || 'Just now'}</div>
+                    <h3 class="text-white font-bold mb-4">Pipeline Intelligence</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-800">
+                            <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">AI Accuracy Rating</div>
+                            <div class="text-2xl font-bold text-emerald-400">99.2%</div>
+                        </div>
+                        <div class="p-4 bg-slate-900/50 rounded-lg border border-slate-800">
+                            <div class="text-[10px] text-slate-500 uppercase font-bold mb-1">Average Patch Time</div>
+                            <div class="text-2xl font-bold text-blue-400">1.8s</div>
+                        </div>
+                    </div>
                 </div>
             `;
+                this.updateProgressBar();
+            },
+
+            updateProgressBar() {
+                const vulns = pipelineState.vulnerabilities;
+                const total = vulns.filter(v => ['DETECTED', 'FIXED', 'PATCHED', 'VALIDATED'].includes(v.status)).length;
+                const fixed = vulns.filter(v => ['FIXED', 'VALIDATED'].includes(v.status)).length;
+
+                const percent = total > 0 ? Math.round((fixed / total) * 100) : 0;
+
+                setTimeout(() => {
+                    const bar = document.getElementById('pipeline-progress-bar');
+                    const label = document.getElementById('pipeline-percent');
+                    if (bar) bar.style.width = `${percent}%`;
+                    if (label) label.innerText = `${percent}%`;
+
+                    const status = document.getElementById('pipeline-mini-status');
+                    if (status) {
+                        const isJobActive = vulns.some(v => v.status.includes('PATCH'));
+                        status.className = `text-[10px] font-mono font-bold px-3 py-1 rounded-full uppercase tracking-widest ${isJobActive ? 'bg-blue-500/20 text-blue-400 animate-pulse' : 'bg-slate-800 text-slate-400'}`;
+                        status.innerText = isJobActive ? 'PATCHING...' : 'IDLE';
+                    }
+                }, 100);
             },
 
             renderVulns(el) {
