@@ -300,7 +300,7 @@
             terminalMode: 'scan',
             init() {
                 router.go('dashboard');
-                pipelineState.executeScan();
+                // Ensure terminal looks clean on load by not triggering any automatic scan
                 pipelineState.fetchWebsites();
                 // Professional Sync: High-frequency polling for real-time feel
                 setInterval(() => pipelineState.fetchAll(), 800);

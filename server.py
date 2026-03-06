@@ -294,6 +294,15 @@ def run_patch_pipeline(job):
         vuln.status = "PATCH_GENERATING"
         db.commit()
         
+        # Granular AI generation delay (simulating 20-30s total processing time)
+        import time
+        import random
+        time.sleep(random.randint(4, 7))
+        append_log("pipeline", f"[INFO] AI Engine analyzing abstract syntax tree for {vuln_id}...")
+        time.sleep(random.randint(5, 8))
+        append_log("pipeline", f"[INFO] Synthesizing secure code replacement...")
+        time.sleep(random.randint(4, 6))
+        
         # Phase 4: Generate unique patch
         remediation = get_remediation_info(vuln.vulnerability_type, vuln.code_snippet)
         vuln.patched_code = remediation["fixed_code"]
@@ -304,6 +313,10 @@ def run_patch_pipeline(job):
         db.commit()
         
         append_log("pipeline", f"[INFO] Validating patch for {vuln_id}...")
+        time.sleep(random.randint(4, 6))
+        append_log("pipeline", f"[INFO] Running security simulation on patched code...")
+        time.sleep(random.randint(5, 8))
+        
         # Phase 5: Validate
         is_fixed = validate_patch_logic(vuln.vulnerability_type, vuln.patched_code)
         vuln.patch_attempts += 1
