@@ -294,14 +294,14 @@ def run_patch_pipeline(job):
         vuln.status = "PATCH_GENERATING"
         db.commit()
         
-        # Granular AI generation delay (simulating 20-30s total processing time)
+        # Accelerated Pipeline Cycles
         import time
         import random
-        time.sleep(random.randint(4, 7))
+        time.sleep(random.uniform(0.4, 0.8))
         append_log("pipeline", f"[INFO] AI Engine analyzing abstract syntax tree for {vuln_id}...")
-        time.sleep(random.randint(5, 8))
+        time.sleep(random.uniform(0.5, 1.0))
         append_log("pipeline", f"[INFO] Synthesizing secure code replacement...")
-        time.sleep(random.randint(4, 6))
+        time.sleep(random.uniform(0.4, 0.7))
         
         # Phase 4: Generate unique patch
         remediation = get_remediation_info(vuln.vulnerability_type, vuln.code_snippet)
@@ -313,9 +313,9 @@ def run_patch_pipeline(job):
         db.commit()
         
         append_log("pipeline", f"[INFO] Validating patch for {vuln_id}...")
-        time.sleep(random.randint(4, 6))
+        time.sleep(random.uniform(0.3, 0.6))
         append_log("pipeline", f"[INFO] Running security simulation on patched code...")
-        time.sleep(random.randint(5, 8))
+        time.sleep(random.uniform(0.4, 0.8))
         
         # Phase 5: Validate
         is_fixed = validate_patch_logic(vuln.vulnerability_type, vuln.patched_code)
@@ -339,9 +339,9 @@ def run_patch_pipeline(job):
     finally:
         db.close()
         active_patch = None
-        # Artificial delay for "monetization" / manual feel
+        # Minimal delay for continuity
         import time
-        time.sleep(1.5)
+        time.sleep(0.5)
         
         # If it was a warning, re-queue it
         try:
