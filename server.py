@@ -295,12 +295,12 @@ def run_patch_pipeline(job):
         vuln.status = "PATCH_GENERATING"
         db.commit()
         
-        # Accelerated Pipeline Cycles
-        time.sleep(random.uniform(0.4, 0.8))
+        # Professional Deliberate Pipeline Cycles (20-30s total)
+        time.sleep(random.uniform(4.0, 6.0))
         append_log("pipeline", f"[INFO] AI Engine analyzing abstract syntax tree for {vuln_id}...")
-        time.sleep(random.uniform(0.5, 1.0))
+        time.sleep(random.uniform(6.0, 8.0))
         append_log("pipeline", f"[INFO] Synthesizing secure code replacement...")
-        time.sleep(random.uniform(0.4, 0.7))
+        time.sleep(random.uniform(4.0, 6.0))
         
         # Phase 4: Generate unique patch
         remediation = get_remediation_info(vuln.vulnerability_type, vuln.code_snippet)
@@ -312,9 +312,9 @@ def run_patch_pipeline(job):
         db.commit()
         
         append_log("pipeline", f"[INFO] Validating patch for {vuln_id}...")
-        time.sleep(random.uniform(0.3, 0.6))
+        time.sleep(random.uniform(3.0, 5.0))
         append_log("pipeline", f"[INFO] Running security simulation on patched code...")
-        time.sleep(random.uniform(0.4, 0.8))
+        time.sleep(random.uniform(5.0, 7.0))
         
         # Phase 5: Validate
         is_fixed = validate_patch_logic(vuln.vulnerability_type, vuln.patched_code)

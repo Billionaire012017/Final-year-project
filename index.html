@@ -431,11 +431,11 @@
 
         const app = {
             terminalMode: 'scan',
+            lastPage: null, // Track page for stability
+
             init() {
                 router.go('dashboard');
-                // Ensure terminal looks clean on load by not triggering any automatic scan
                 pipelineState.fetchWebsites();
-                // Professional Sync: High-frequency polling for real-time feel
                 setInterval(() => pipelineState.fetchAll(), 400);
                 setInterval(() => pipelineState.fetchTerminal(), 400);
             },
@@ -470,8 +470,9 @@
                 const viewport = document.getElementById('viewport');
                 const page = router.current;
 
-                if (!isUpdate) {
-                    viewport.innerHTML = ''; // Start clean for full page switch
+                // For full page transitions, only clear if we actually changed pages
+                if (!isUpdate && this.lastPage !== page) {
+                    viewport.innerHTML = '';
                     if (page === 'dashboard') this.renderDashboard(viewport);
                     else if (page === 'vulnerabilities') this.renderVulns(viewport);
                     else if (page === 'patch-lab') this.renderPatchLab(viewport);
@@ -481,6 +482,7 @@
                     else if (page === 'feedback') this.renderFeedback(viewport);
                     else if (page === 'terminal') this.renderTerminal(viewport);
                     else if (page === 'website-scanner') this.renderWebsiteScanner(viewport);
+                    this.lastPage = page;
                     lucide.createIcons();
                 } else {
                     // Targeted Dynamic Updates
@@ -552,7 +554,7 @@
                                 </div>
                             </div>
                         </div>
-
+ 
                         <div class="p-8 border-t border-white/10 bg-black/40 flex justify-between items-center text-[10px] text-slate-600 font-black uppercase tracking-widest">
                             <div class="flex items-center gap-4">
                                 <span class="px-3 py-1 rounded-lg border border-white/5">VEC: ${v.vulnerability_type}</span>
@@ -577,27 +579,32 @@
 
             showPipelinePopup() {
                 const count = pipelineState.vulnerabilities.filter(v => v.status === 'DETECTED' || v.status === 'QUEUED_FOR_PATCH').length;
-                if (count === 0) return;
+                if (count === 0 || !pipelineState.paused) return; // Don't show if empty or already running
+
+                // Prevent duplicate modals
+                if (document.getElementById('pipeline-modal')) return;
 
                 const overlay = document.createElement('div');
                 overlay.id = 'pipeline-modal';
-                overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm px-6';
+                overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl px-6';
                 overlay.innerHTML = `
-                    <div class="glass max-w-lg w-full p-8 rounded-2xl border-blue-500/30 shadow-[0_0_50px_rgba(59,130,246,0.2)] text-center animate-in zoom-in duration-300">
-                        <div class="w-20 h-20 bg-blue-600/20 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <i data-lucide="shield-alert" class="w-10 h-10"></i>
+                    <div class="glass max-w-lg w-full p-10 rounded-[40px] border-blue-500/40 shadow-[0_0_80px_rgba(59,130,246,0.3)] text-center animate-in zoom-in duration-500">
+                        <div class="w-24 h-24 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse border border-blue-500/30">
+                            <i data-lucide="shield-alert" class="w-12 h-12"></i>
                         </div>
-                        <h3 class="text-2xl font-bold text-white mb-2">Threat Detection Complete</h3>
-                        <p class="text-slate-400 mb-8 font-mono text-sm">System has identified <span class="text-blue-400 font-bold">${count} vulnerabilities</span> requiring remediation. Move for automated execution?</p>
+                        <h3 class="text-3xl font-black text-white mb-4 tracking-tighter italic uppercase">Security Audit Complete</h3>
+                        <p class="text-slate-400 mb-10 font-bold leading-relaxed">
+                            "We found <span class="text-blue-400 text-xl font-black px-2">${count} errors</span> in the system registry. Can I start the auto-remediation kernel to eliminate these threats?"
+                        </p>
                         
                         <div class="flex gap-4">
                             <button onclick="document.getElementById('pipeline-modal').remove()" 
-                                class="flex-1 px-6 py-4 rounded-xl border border-slate-700 text-slate-400 font-bold hover:bg-slate-800 transition-all">
+                                class="flex-1 px-8 py-5 rounded-2xl border border-white/10 text-slate-500 font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-all active:scale-95">
                                 Monitor Only
                             </button>
                             <button onclick="pipelineState.startPipeline(); document.getElementById('pipeline-modal').remove()" 
-                                class="flex-1 px-6 py-4 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-500 shadow-xl shadow-blue-900/40 transition-all">
-                                Execute Remediation
+                                class="flex-1 px-8 py-5 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-blue-500 shadow-[0_10px_30px_rgba(37,99,235,0.4)] transition-all active:scale-95">
+                                Accept & Execute
                             </button>
                         </div>
                     </div>
@@ -605,6 +612,7 @@
                 document.body.appendChild(overlay);
                 lucide.createIcons();
             },
+
 
             renderGlobalOverlays() {
                 // Background status indicator
