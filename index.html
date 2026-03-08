@@ -279,15 +279,12 @@
                     this.scanStatus = scanData.status || 'COMPLETED';
                     const foundCount = scanData.found_count;
 
-                    // Detect when executive scan just finished → show Queue popup
-                    if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED' && !this.executiveScanFinished) {
-                        this.executiveScanFinished = true;
-                        if (foundCount !== undefined) {
-                            // This was an executive scan — show queue confirmation popup
+                    // Detect when ANY scan just finished → show Queue popup
+                    if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED' && !this.scanFinishedFlag) {
+                        this.scanFinishedFlag = true;
+                        if (foundCount !== undefined && foundCount > 0) {
+                            // Show queue confirmation popup asking user to start the standard automation flow
                             setTimeout(() => app.showQueueConfirmPopup(foundCount), 500);
-                        } else {
-                            // Regular scan finished — show start-pipeline popup
-                            if (this.paused) setTimeout(() => app.showPipelinePopup(), 500);
                         }
                     }
 
@@ -337,6 +334,8 @@
                     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
+                    this.scanFinishedFlag = false;
+                    app.terminalMode = 'scan';
                     router.go('terminal');
                     this.fetchTerminal();
                 } catch (e) {
@@ -353,6 +352,8 @@
                     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
+                    this.scanFinishedFlag = false;
+                    app.terminalMode = 'scan';
                     router.go('terminal');
                     this.fetchTerminal();
                 } catch (e) {
@@ -369,7 +370,7 @@
                     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
-                    this.executiveScanFinished = false; // Reset flag for popup
+                    this.scanFinishedFlag = false; // Reset flag for popup
                     // Always go to terminal Scanner Logic tab
                     app.terminalMode = 'scan';
                     app.lastPage = null; // Force re-render
@@ -387,7 +388,11 @@
                     if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
                     const data = await res.json();
                     this.currentScanId = data.scan_id;
+                    this.scanStatus = 'RUNNING';
+                    this.scanFinishedFlag = false;
+                    app.terminalMode = 'scan';
                     router.go('terminal');
+                    this.fetchTerminal();
                 } catch (e) {
                     console.error("Scan Failed:", e);
                     alert(`Scan failed: ${e.message}`);

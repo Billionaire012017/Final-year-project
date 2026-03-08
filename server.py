@@ -610,7 +610,6 @@ def run_filesystem_scan(session_id: str):
                         db.add(db_vuln)
                         db.commit() # Trigger queue
                         detected_vulns.append(db_vuln)
-                        add_to_patch_queue(v_id)
     
     if not detected_vulns:
         append_log(session_id, "No vulnerabilities detected in modules.", level="SUCCESS")
@@ -889,11 +888,13 @@ def scan_website_task(url: str, session_id: str, app_name: str):
     db.close()
     
     try:
-        scan_website_core(url, session_id, app_name, scan_session.id)
+        found_count = scan_website_core(url, session_id, app_name, scan_session.id)
         append_log(session_id, "Scan Completed Successfully.", level="SUCCESS")
+        terminal_sessions[session_id]["found_count"] = found_count
         terminal_sessions[session_id]["status"] = "COMPLETED"
     except Exception as e:
         append_log(session_id, f"Scan failed: {str(e)}", level="ERROR")
+        terminal_sessions[session_id]["found_count"] = 0
         terminal_sessions[session_id]["status"] = "COMPLETED"
 
 def scan_website_core_scan_only(url: str, session_id: str, app_name: str, scan_session_id: int) -> int:
@@ -1095,9 +1096,6 @@ def scan_website_core(url: str, session_id: str, app_name: str, scan_session_id:
                             db.commit()
 
                         detected_vulns.append(db_vuln)
-                        
-                        # Phase 8: Auto-queue
-                        add_to_patch_queue(v_id)
 
         forms = soup.find_all('form')
         for form in forms:
@@ -1143,15 +1141,13 @@ def scan_website_core(url: str, session_id: str, app_name: str, scan_session_id:
                             db.commit()
 
                         detected_vulns.append(db_vuln)
-                        
-                        # Phase 8: Auto-queue for form inputs
-                        add_to_patch_queue(v_id)
 
         if not detected_vulns:
             append_log(session_id, "No vulnerabilities detected.", level="SUCCESS")
 
         db.commit()
         db.close()
+        return len(detected_vulns)
     except Exception as e:
         db.close()
         raise e
