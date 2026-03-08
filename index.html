@@ -23,19 +23,19 @@
         }
 
         .glass {
-            background: linear-gradient(145deg, rgba(30, 41, 59, 0.5) 0%, rgba(15, 23, 42, 0.8) 100%);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 16px 40px -10px rgba(0, 0, 0, 0.5);
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            background: linear-gradient(145deg, rgba(15, 23, 42, 0.6) 0%, rgba(2, 6, 23, 0.9) 100%);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
         .glass:hover {
-            border-color: rgba(59, 130, 246, 0.3);
-            box-shadow: 0 20px 50px -10px rgba(59, 130, 246, 0.15);
-            transform: translateY(-3px);
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 35px 60px -12px rgba(59, 130, 246, 0.2);
+            transform: translateY(-5px);
         }
 
         .nav-item {
@@ -129,56 +129,58 @@
     <!-- SIDEBAR -->
     <nav
         class="w-68 bg-black/40 backdrop-blur-xl border-r border-slate-800/50 flex flex-col p-6 z-10 shadow-2xl shadow-indigo-500/10">
-        <div class="mb-10 px-2 flex items-center gap-3">
+        <div class="mb-12 px-2 flex items-center gap-4">
             <div
-                class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/20 pulse-subtle">
-                <i data-lucide="shield-lightning" class="w-5 h-5 text-white"></i>
+                class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 flex items-center justify-center shadow-[0_8px_25px_rgba(59,130,246,0.4)] pulse-subtle relative overflow-hidden group">
+                <div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <i data-lucide="shield-check" class="w-6 h-6 text-white relative z-10"></i>
             </div>
             <div>
-                <span class="font-black text-xl text-gradient tracking-tight block leading-tight">SecLAB</span>
+                <span class="font-black text-2xl text-white tracking-tighter block leading-none mb-1">SecLAB<span
+                        class="text-blue-500">.</span></span>
                 <span
-                    class="text-[9px] font-bold text-slate-500 uppercase letter-spacing-wider tracking-widest block">AI
-                    Core Engine</span>
+                    class="text-[10px] font-black text-slate-500 uppercase tracking-[0.4em] block opacity-80">Autonomous
+                    Core</span>
             </div>
         </div>
 
         <div class="space-y-1.5 flex-1">
             <button onclick="router.go('dashboard')" id="btn-dashboard"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="layout-grid" class="w-4 h-4"></i> Command Center
+                <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
             </button>
             <button onclick="router.go('vulnerabilities')" id="btn-vulnerabilities"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="scan-line" class="w-4 h-4"></i> Event Horizon (Vulns)
+                <i data-lucide="shield-alert" class="w-4 h-4"></i> Vulnerabilities
             </button>
             <button onclick="router.go('patch-lab')" id="btn-patch-lab"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="microscope" class="w-4 h-4"></i> Automation Lab
+                <i data-lucide="wrench" class="w-4 h-4"></i> Patch Lab
             </button>
             <button onclick="router.go('decision-tree')" id="btn-decision-tree"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="network" class="w-4 h-4"></i> Logic Flow matrix
+                <i data-lucide="git-branch" class="w-4 h-4"></i> Decision Tree
             </button>
             <button onclick="router.go('system-core')" id="btn-system-core"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="satellite" class="w-4 h-4"></i> Engine Diagnostics
+                <i data-lucide="cpu" class="w-4 h-4"></i> System Core
             </button>
             <button onclick="router.go('compliance')" id="btn-compliance"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="file-badge" class="w-4 h-4"></i> Ledger Audit
+                <i data-lucide="clipboard-check" class="w-4 h-4"></i> Compliance
             </button>
             <button onclick="router.go('feedback')" id="btn-feedback"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="sparkles" class="w-4 h-4"></i> User Tuning
+                <i data-lucide="message-square" class="w-4 h-4"></i> Feedback
             </button>
-            <div class="my-4 h-px bg-slate-800/50"></div>
+            <div class="my-4 h-px bg-slate-800/30"></div>
             <button onclick="router.go('terminal')" id="btn-terminal"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="terminal-square" class="w-4 h-4"></i> Live Shell
+                <i data-lucide="terminal" class="w-4 h-4"></i> Terminal
             </button>
             <button onclick="router.go('website-scanner')" id="btn-website-scanner"
                 class="nav-item w-full text-left px-4 py-3.5 rounded-xl text-slate-400 transition-all duration-300 flex items-center gap-3">
-                <i data-lucide="radar" class="w-4 h-4"></i> Target Scanners
+                <i data-lucide="globe" class="w-4 h-4"></i> Website Scanner
             </button>
         </div>
     </nav>
@@ -416,13 +418,13 @@
                 const titles = {
                     'dashboard': 'Security Dashboard',
                     'vulnerabilities': 'Vulnerability Registry',
-                    'patch-lab': 'Remediation Laboratory',
-                    'decision-tree': 'Decision Logic Visualization',
-                    'system-core': 'Engine Diagnostics',
-                    'compliance': 'Compliance Ledger',
-                    'feedback': 'User Feedback Loop',
-                    'terminal': 'Live System Terminal',
-                    'website-scanner': 'Pre-connected Security Audit'
+                    'patch-lab': 'Patch Lab',
+                    'decision-tree': 'Decision Tree',
+                    'system-core': 'System Core',
+                    'compliance': 'Compliance',
+                    'feedback': 'Feedback',
+                    'terminal': 'Terminal',
+                    'website-scanner': 'Website Scanner'
                 };
                 document.getElementById('page-title').innerText = titles[page];
                 app.render();
@@ -524,93 +526,113 @@
                 const s = pipelineState.metrics;
                 el.innerHTML = `
                 <div class="grid grid-cols-4 gap-6 mb-8">
-                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border border-slate-700/50 shadow-lg">
-                        <div class="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-3 relative z-10">Total Vulnerabilities</div>
-                        <div class="text-6xl font-black text-white relative z-10 tracking-tighter">${s.total}</div>
+                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border border-slate-700/50 shadow-2xl">
+                        <div class="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                        <div class="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4 relative z-10">
+                            <i data-lucide="layers" class="w-3 h-3 text-blue-500"></i> Total Vulnerabilities
+                        </div>
+                        <div class="text-7xl font-black text-white relative z-10 tracking-tighter drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]">${s.total || 0}</div>
+                        <div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+                            <i data-lucide="layers" class="w-32 h-32 text-white"></i>
+                        </div>
                     </div>
-                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border-l-4 border-l-amber-500 border border-slate-700/50 shadow-lg shadow-amber-900/10">
-                        <div class="absolute inset-0 bg-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-3 relative z-10">Pending Patch</div>
-                        <div class="text-6xl font-black text-amber-500 relative z-10 tracking-tighter drop-shadow-sm">${s.patched}</div>
+                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border border-amber-500/20 shadow-2xl">
+                        <div class="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                        <div class="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4 relative z-10">
+                            <i data-lucide="clock" class="w-3 h-3 text-amber-500"></i> Pending Patch
+                        </div>
+                        <div class="text-7xl font-black text-amber-500 relative z-10 tracking-tighter drop-shadow-[0_10px_10px_rgba(245,158,11,0.2)]">${s.patched || 0}</div>
+                        <div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+                            <i data-lucide="clock" class="w-32 h-32 text-white"></i>
+                        </div>
                     </div>
-                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border-l-4 border-l-emerald-500 border border-slate-700/50 shadow-lg shadow-emerald-900/10">
-                        <div class="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-3 relative z-10">Validated Secure</div>
-                        <div class="text-6xl font-black text-emerald-400 relative z-10 tracking-tighter drop-shadow-sm">${s.validated}</div>
+                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border border-emerald-500/20 shadow-2xl">
+                        <div class="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                        <div class="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4 relative z-10">
+                            <i data-lucide="shield-check" class="w-3 h-3 text-emerald-500"></i> Validated Secure
+                        </div>
+                        <div class="text-7xl font-black text-emerald-400 relative z-10 tracking-tighter drop-shadow-[0_10px_10px_rgba(52,211,153,0.2)]">${s.validated || 0}</div>
+                        <div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+                            <i data-lucide="shield-check" class="w-32 h-32 text-white"></i>
+                        </div>
                     </div>
-                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border-l-4 border-l-rose-500 border border-slate-700/50 shadow-lg shadow-rose-900/10">
-                        <div class="absolute inset-0 bg-rose-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-                        <div class="text-slate-400 text-[11px] font-black uppercase tracking-[0.2em] mb-3 relative z-10">Total Risk Score</div>
-                        <div class="text-6xl font-black text-rose-500 relative z-10 tracking-tighter drop-shadow-sm">${s.risk_score}</div>
+                    <div class="glass p-8 rounded-3xl relative overflow-hidden group border border-rose-500/20 shadow-2xl">
+                        <div class="absolute inset-0 bg-gradient-to-br from-rose-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
+                        <div class="flex items-center gap-2 text-slate-400 text-[10px] font-black uppercase tracking-[0.3em] mb-4 relative z-10">
+                            <i data-lucide="alert-triangle" class="w-3 h-3 text-rose-500"></i> Total Risk Score
+                        </div>
+                        <div class="text-7xl font-black text-rose-500 relative z-10 tracking-tighter drop-shadow-[0_10px_10px_rgba(244,63,94,0.2)]">${s.risk_score || 0}</div>
+                        <div class="absolute -right-4 -bottom-4 opacity-5 pointer-events-none">
+                            <i data-lucide="alert-triangle" class="w-32 h-32 text-white"></i>
+                        </div>
                     </div>
                 </div>
 
-                <div class="glass p-10 rounded-3xl bg-gradient-to-br from-[#0a0a0f] via-[#11111a] to-[#050505] border border-blue-500/20 mb-8 shadow-2xl relative overflow-hidden">
-                    <div class="absolute top-0 right-0 w-96 h-96 bg-blue-500/5 blur-[100px] rounded-full pointer-events-none"></div>
-                    <div class="flex justify-between items-center mb-8 relative z-10">
-                        <h3 class="text-2xl font-black text-white flex items-center gap-3 tracking-tight">
-                            <i data-lucide="shield-check" class="text-blue-500 w-6 h-6"></i> Cyber Defense Pipeline
-                        </h3>
-                        <div id="pipeline-mini-status" class="text-[11px] font-black px-4 py-1.5 rounded-full border ${pipelineState.paused ? 'border-slate-700 text-slate-400 bg-slate-900/50' : 'border-blue-500 text-blue-400 bg-blue-900/30 shadow-[0_0_15px_rgba(59,130,246,0.3)]'} uppercase tracking-[0.2em] transition-all duration-300">
-                            ${pipelineState.paused ? 'IDLE' : 'EXECUTING AUTOMATION...'}
+                <div class="glass p-12 rounded-[40px] bg-gradient-to-br from-[#0a0a0f] via-[#11111a] to-[#050505] border border-blue-500/20 mb-10 shadow-[0_30px_100px_rgba(0,0,0,0.8)] relative overflow-hidden">
+                    <div class="absolute -top-48 -right-48 w-96 h-96 bg-blue-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+                    <div class="absolute -bottom-48 -left-48 w-96 h-96 bg-indigo-600/10 blur-[120px] rounded-full pointer-events-none"></div>
+                    
+                    <div class="flex justify-between items-start mb-10 relative z-10">
+                        <div>
+                            <h3 class="text-3xl font-black text-white flex items-center gap-4 tracking-tight uppercase italic underline decoration-blue-500 decoration-4 underline-offset-8">
+                                Cyber Defense Pipeline
+                            </h3>
+                            <p class="text-slate-500 text-xs mt-4 font-black tracking-[0.2em] uppercase">Autonomous Remediation Core v4.0.2</p>
+                        </div>
+                        <div id="pipeline-mini-status" class="text-[11px] font-black px-6 py-2 rounded-full border border-blue-500 text-blue-400 bg-blue-900/30 shadow-[0_0_30px_rgba(59,130,246,0.4)] uppercase tracking-[0.3em] transition-all duration-500 animate-pulse">
+                            SCANNING ACTIVE
                         </div>
                     </div>
                     
-                    <div id="pipeline-active-task-container" class="mb-6 relative z-10 hidden">
-                        <div class="p-4 bg-blue-950/30 border border-blue-500/20 rounded-xl flex items-center gap-4">
-                            <div class="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-                                <i data-lucide="loader-2" class="w-5 h-5 text-blue-400 animate-spin"></i>
+                    <div id="pipeline-active-task-container" class="mb-10 relative z-10">
+                        <div class="p-6 bg-black/60 border border-white/5 rounded-3xl flex items-center gap-6 shadow-inner">
+                            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center shrink-0 shadow-lg shadow-blue-500/20">
+                                <i data-lucide="loader" class="w-8 h-8 text-white animate-[spin_3s_linear_infinite]"></i>
                             </div>
                             <div class="flex-1 overflow-hidden">
-                                <div class="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-1 flex items-center gap-2">
-                                    <span class="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span> PROCESSING THREAT
+                                <div class="flex items-center justify-between mb-2">
+                                    <div class="text-[12px] text-blue-400 font-black uppercase tracking-[0.2em] flex items-center gap-3">
+                                        <span class="w-2 h-2 rounded-full bg-blue-500 animate-ping"></span> CURRENT THREAT VECTOR
+                                    </div>
+                                    <div id="pipeline-percent-large" class="text-2xl font-black text-blue-500 font-mono">24%</div>
                                 </div>
-                                <div id="pipeline-active-url" class="text-sm font-mono text-white truncate px-2 py-1 bg-black/40 rounded border border-white/5">Waiting for active task...</div>
+                                <div id="pipeline-active-url" class="text-lg font-mono text-white truncate px-4 py-2 bg-slate-900/50 rounded-xl border border-white/10 shadow-inner">Initializing scanning engine...</div>
                             </div>
                         </div>
                     </div>
 
-                    <div id="pipeline-progress-container" class="mb-8 relative z-10">
-                        <div class="flex justify-between text-[11px] font-black uppercase tracking-[0.2em] text-slate-400 mb-3">
-                            <span>Remediation Progress</span>
-                            <span id="pipeline-percent" class="text-blue-400">0%</span>
-                        </div>
-                        <div class="h-4 bg-black/80 rounded-full overflow-hidden border border-white/5 p-0.5 shadow-inner">
-                            <div id="pipeline-progress-bar" class="h-full bg-gradient-to-r from-blue-600 via-indigo-500 to-emerald-400 rounded-full shadow-[0_0_15px_rgba(59,130,246,0.5)] transition-all duration-1000 relative overflow-hidden" style="width: 0%">
-                                <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-10"></div>
+                    <div id="pipeline-progress-container" class="mb-10 relative z-10">
+                        <div class="h-10 bg-slate-900/80 rounded-2xl overflow-hidden border border-white/10 p-1.5 shadow-2xl relative">
+                            <div id="pipeline-progress-bar" class="h-full bg-gradient-to-r from-blue-700 via-indigo-500 to-emerald-400 rounded-xl shadow-[0_0_40px_rgba(59,130,246,0.6)] transition-all duration-1000 relative overflow-hidden" style="width: 24%">
+                                <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')] opacity-20"></div>
+                                <div class="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite]"></div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="flex gap-4 relative z-10 group">
-                        <div class="flex-1 flex items-center bg-slate-950/80 border border-white/10 rounded-2xl px-6 focus-within:border-blue-500 transition-all shadow-inner shadow-black/50 group-hover:border-white/20">
-                            <i data-lucide="target" class="w-5 h-5 text-slate-500 mr-3"></i>
-                            <input type="url" id="web-url" placeholder="https://your-target-application.com" value="https://example.com" class="bg-transparent text-sm font-mono text-white w-full py-4 outline-none focus:ring-0">
-                        </div>
-                        <button onclick="pipelineState.scanWebsite(document.getElementById('web-url').value)"
-                            class="bg-gradient-to-b from-blue-600 to-indigo-700 hover:from-blue-500 hover:to-indigo-600 text-white font-black uppercase tracking-widest px-10 py-4 rounded-2xl shadow-[0_10px_30px_rgba(59,130,246,0.3)] hover:shadow-[0_15px_40px_rgba(59,130,246,0.5)] hover:-translate-y-1 transition-all duration-300 shrink-0">
-                            <i data-lucide="radar" class="w-4 h-4 inline mr-2"></i> Scan Website
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="glass p-10 rounded-3xl relative overflow-hidden border border-slate-700/50 shadow-lg">
-                    <h3 class="text-white font-black text-2xl mb-8 tracking-tight">Pipeline Intelligence</h3>
-                    <div class="grid grid-cols-2 gap-8">
-                        <div class="p-8 bg-black/60 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-emerald-500/30 transition-all">
-                            <div class="text-[11px] text-slate-500 uppercase tracking-[0.2em] font-black mb-3 relative z-10">AI Accuracy Rating</div>
-                            <div class="text-5xl font-black text-emerald-400 relative z-10">99.2%</div>
+                    <div class="grid grid-cols-2 gap-6 relative z-10">
+                        <div class="p-8 bg-black/40 rounded-3xl border border-white/5 relative overflow-hidden group hover:border-emerald-500/40 transition-all">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="text-[11px] text-slate-500 uppercase tracking-[0.3em] font-black">AI Accuracy</div>
+                                <i data-lucide="activity" class="w-4 h-4 text-emerald-500"></i>
+                            </div>
+                            <div class="text-6xl font-black text-emerald-400 tracking-tighter">99.2%</div>
+                            <div class="mt-4 text-[10px] text-emerald-500/70 font-bold uppercase tracking-widest italic">_ verified by heuristic neural engine</div>
                             <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl rounded-full"></div>
                         </div>
-                        <div class="p-8 bg-black/60 rounded-2xl border border-white/5 relative overflow-hidden group hover:border-blue-500/30 transition-all">
-                            <div class="text-[11px] text-slate-500 uppercase tracking-[0.2em] font-black mb-3 relative z-10">Average Patch Time</div>
-                            <div class="text-5xl font-black text-blue-400 relative z-10">1.8s</div>
+                        <div class="p-8 bg-black/40 rounded-3xl border border-white/5 relative overflow-hidden group hover:border-blue-500/40 transition-all">
+                            <div class="flex items-center justify-between mb-4">
+                                <div class="text-[11px] text-slate-500 uppercase tracking-[0.3em] font-black">Avg Patch Time</div>
+                                <i data-lucide="zap" class="w-4 h-4 text-blue-500"></i>
+                            </div>
+                            <div class="text-6xl font-black text-blue-400 tracking-tighter">1.8s</div>
+                            <div class="mt-4 text-[10px] text-blue-500/70 font-bold uppercase tracking-widest italic">_ optimized synthesis cycles</div>
                             <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/5 blur-3xl rounded-full"></div>
                         </div>
                     </div>
                 </div>
             `;
+                lucide.createIcons();
                 this.updateProgressBar();
             },
 
@@ -624,8 +646,10 @@
                 setTimeout(() => {
                     const bar = document.getElementById('pipeline-progress-bar');
                     const label = document.getElementById('pipeline-percent');
+                    const labelLarge = document.getElementById('pipeline-percent-large');
                     if (bar) bar.style.width = `${percent}%`;
                     if (label) label.innerText = `${percent}%`;
+                    if (labelLarge) labelLarge.innerText = `${percent}%`;
 
                     const status = document.getElementById('pipeline-mini-status');
                     const taskContainer = document.getElementById('pipeline-active-task-container');
@@ -635,15 +659,15 @@
                         const activeVuln = vulns.find(v => v.status.includes('PATCH') || v.status.includes('QUEUE'));
                         const isJobActive = !!activeVuln;
 
-                        status.className = `text-[11px] font-black px-4 py-1.5 rounded-full uppercase tracking-[0.2em] transition-all duration-300 ${isJobActive ? 'bg-blue-500/20 text-blue-400 border border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.3)] animate-pulse' : 'bg-slate-900 text-slate-400 border border-slate-700'}`;
-                        status.innerText = isJobActive ? 'PATCHING...' : 'IDLE';
+                        status.className = `text-[11px] font-black px-6 py-2 rounded-full border uppercase tracking-[0.3em] transition-all duration-500 ${isJobActive ? 'border-blue-500 text-blue-400 bg-blue-900/30 shadow-[0_0_30px_rgba(59,130,246,0.4)] animate-pulse' : 'border-slate-800 text-slate-500 bg-slate-900/50'}`;
+                        status.innerText = isJobActive ? 'REMEDIATION IN PROGRESS' : 'ENGINE IDLE';
 
                         if (taskContainer && taskUrl) {
                             if (isJobActive) {
-                                taskContainer.classList.remove('hidden');
-                                taskUrl.innerText = `${activeVuln.target_url || 'LOCAL SYSTEM'} -> ${activeVuln.file_name}:${activeVuln.line_number}`;
+                                taskContainer.style.display = 'block';
+                                taskUrl.innerText = `${activeVuln.target_url || 'LOCAL ENDPOINT'} -> [${activeVuln.vulnerability_type}] AT ${activeVuln.file_name}:${activeVuln.line_number}`;
                             } else {
-                                taskContainer.classList.add('hidden');
+                                taskContainer.style.display = 'none';
                             }
                         }
                     }
@@ -652,52 +676,77 @@
 
             renderVulns(el) {
                 const rows = pipelineState.vulnerabilities.map(v => `
-                <tr class="border-b border-slate-800 hover:bg-slate-900/50 transition">
-                    <td class="p-4 font-mono text-xs text-blue-400">${v.id}</td>
-                    <td class="p-4 text-white font-medium">${v.vulnerability_type}</td>
-                    <td class="p-4"><span class="bg-red-500/10 text-red-500 px-2 py-1 rounded text-xs font-bold">${v.severity}</span></td>
-                    <td class="p-4">
-                        <div class="font-mono text-slate-400 text-xs mb-1">${v.file_name}:${v.line_number}</div>
-                        <div class="flex items-center gap-1 group">
-                            <div class="text-[10px] text-blue-500/70 truncate max-w-[150px]" title="${v.target_url}">${v.target_url || 'LOCAL'}</div>
-                            <button onclick="navigator.clipboard.writeText('${v.target_url}'); this.innerHTML='✓'; setTimeout(() => this.innerHTML='📋', 1000)" 
-                                    class="text-[9px] text-slate-600 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-all">📋</button>
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
+                    <td class="p-6 font-mono text-[11px] text-blue-500 font-bold tracking-wider">${v.id}</td>
+                    <td class="p-6">
+                        <div class="text-white font-black text-sm mb-1 tracking-tight italic">${v.vulnerability_type}</div>
+                        <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">${v.file_name}</div>
+                    </td>
+                    <td class="p-6">
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]">
+                            <i data-lucide="shield-alert" class="w-2.5 h-2.5 mr-1.5"></i> ${v.severity}
+                        </span>
+                    </td>
+                    <td class="p-6">
+                        <div class="font-mono text-slate-400 text-[11px] bg-black/40 px-3 py-2 rounded-xl border border-white/5 truncate max-w-[200px]" title="${v.target_url}">
+                            ${v.target_url || 'LOCAL KERNEL'}
                         </div>
                     </td>
-                    <td class="p-4 text-xs font-black font-mono tracking-wider">
-                        <span class="px-2 py-1 rounded-md bg-opacity-20 ${v.status === 'FIXED' ? 'text-emerald-400 bg-emerald-500' :
-                        v.status === 'FAILED' ? 'text-rose-500 bg-rose-500' :
-                            v.status.includes('PATCH') || v.status.includes('QUEUE') ? 'text-blue-400 bg-blue-500 animate-pulse' :
-                                'text-slate-300 bg-slate-500'
-                    }">${v.status.replace(/_/g, ' ')}</span>
+                    <td class="p-6">
+                        <span class="inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${v.status === 'FIXED' || v.status === 'VALIDATED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]' :
+                        v.status.includes('PATCH') ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse shadow-[0_0_20px_rgba(59,130,246,0.2)]' :
+                            'bg-slate-800/40 text-slate-400 border border-white/10'
+                    }">
+                            ${v.status.replace(/_/g, ' ')}
+                        </span>
                     </td>
-                    <td class="p-4">
-                        <div class="flex gap-2">
-                            ${v.status === 'DETECTED' ? `<span class="text-[10px] text-slate-500 italic">Queueing...</span>` : ''}
-                            ${v.status.includes('PATCH') || v.status === 'FIXED' ? `<button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" class="bg-blue-600 hover:bg-blue-500 px-3 py-1 rounded text-white text-xs font-bold transition-all">View Details</button>` : ''}
-                            ${v.status === 'VALIDATED' || v.status === 'FIXED' ? `<button onclick="app.submitFeedback('${v.id}')" class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded text-white text-xs font-bold transition-all">Feedback</button>` : ''}
+                    <td class="p-6 text-right">
+                        <div class="flex items-center justify-end gap-3">
+                            <button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" 
+                                    class="p-2 rounded-xl bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="app.submitFeedback('${v.id}')" 
+                                    class="p-2 rounded-xl bg-white/5 hover:bg-emerald-600 border border-white/10 hover:border-emerald-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
+                                <i data-lucide="message-square" class="w-4 h-4"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>
             `).join('');
 
                 el.innerHTML = `
-                <div class="glass rounded-2xl overflow-hidden border border-white/5 shadow-2xl">
-                    <table class="w-full text-left">
-                        <thead class="bg-indigo-950/40 text-[10px] text-indigo-300 uppercase font-black tracking-[0.2em] border-b border-white/10">
-                            <tr>
-                                <th class="p-5">ID</th>
-                                <th class="p-5">Threat Type</th>
-                                <th class="p-5">Severity</th>
-                                <th class="p-5">Location Source</th>
-                                <th class="p-5">Pipeline Status</th>
-                                <th class="p-5">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-white/5 text-sm">${rows}</tbody>
-                    </table>
+                <div class="glass rounded-[35px] overflow-hidden border border-white/10 shadow-3xl bg-[#020617]/40 backdrop-blur-3xl">
+                    <div class="p-8 border-b border-white/5 flex justify-between items-center bg-gradient-to-r from-blue-900/10 to-transparent">
+                        <div>
+                            <h3 class="text-2xl font-black text-white tracking-tight uppercase italic mb-1">Threat Vector Spectrum</h3>
+                            <p class="text-[10px] text-slate-500 font-bold tracking-[0.3em] uppercase opacity-70">Live remediation kernel synchronization active</p>
+                        </div>
+                        <div class="flex gap-4">
+                            <div class="px-4 py-2 rounded-2xl bg-black/40 border border-white/5 flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                                <span class="text-[10px] font-black text-slate-400 tracking-widest uppercase">Kernel Online</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="bg-black/60 text-[11px] text-slate-500 uppercase font-black tracking-[0.4em] border-b border-white/5">
+                                <tr>
+                                    <th class="p-8">Registry ID</th>
+                                    <th class="p-8">Vector Signature</th>
+                                    <th class="p-8">Criticality</th>
+                                    <th class="p-8">Logical Source</th>
+                                    <th class="p-8">Kernel Status</th>
+                                    <th class="p-8 text-right">Directives</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-white/[0.03] text-sm">${rows || '<tr><td colspan="6" class="p-40 text-center text-slate-700 font-black tracking-[0.5em] italic uppercase opacity-50 animate-pulse">_ Awaiting neural scan data...</td></tr>'}</tbody>
+                        </table>
+                    </div>
                 </div>
             `;
+                lucide.createIcons();
             },
 
             renderPatchLab(el) {
@@ -1035,67 +1084,81 @@
 
             renderWebsiteScanner(el) {
                 const sites = pipelineState.availableWebsites.map(s => `
-                    <div class="glass p-6 rounded-xl border border-slate-800 hover:border-blue-500/50 transition-all flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center gap-3 mb-3">
-                                <div class="w-10 h-10 rounded-lg bg-blue-600/20 flex items-center justify-center text-blue-500">
-                                    <i data-lucide="globe" class="w-5 h-5"></i>
-                                </div>
-                                <h4 class="text-white font-bold leading-tight text-sm">${s.name}</h4>
+                <div class="glass p-8 rounded-[30px] border border-white/5 hover:border-blue-500/30 transition-all flex flex-col justify-between group bg-black/40 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-black border border-white/10 flex items-center justify-center text-blue-400 shadow-lg group-hover:scale-110 transition-transform">
+                                <i data-lucide="globe" class="w-7 h-7"></i>
                             </div>
-                            <div class="bg-slate-900/50 rounded-lg p-3 mb-4 border border-slate-800">
-                                <div class="text-[9px] text-slate-600 uppercase font-bold mb-1">Target URL</div>
-                                <div class="flex items-center gap-2">
-                                    <input type="text" value="${s.url}" readonly 
-                                        class="flex-1 bg-transparent text-[11px] font-mono text-blue-400 outline-none select-all cursor-pointer" 
-                                        onclick="this.select()" 
-                                        title="Click to select and copy"/>
-                                    <button onclick="navigator.clipboard.writeText('${s.url}'); this.innerHTML='✓'; setTimeout(() => this.innerHTML='📋', 1000)" 
-                                        class="text-slate-500 hover:text-blue-400 text-xs transition-all" 
-                                        title="Copy URL">📋</button>
-                                </div>
+                            <div>
+                                <h4 class="text-white font-black leading-tight text-lg tracking-tight italic uppercase">${s.name}</h4>
+                                <div class="text-[9px] text-blue-500 font-black tracking-[0.2em] uppercase">Target ID: ${s.id}</div>
                             </div>
                         </div>
-                        <button onclick="pipelineState.scanPredefinedWebsite('${s.id}')"
-                            class="w-full bg-slate-800 hover:bg-blue-600 text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center gap-2">
-                            <i data-lucide="zap" class="w-3 h-3"></i> Initialize Audit
-                        </button>
+                        <div class="bg-[#050505] rounded-2xl p-4 mb-6 border border-white/5 shadow-inner">
+                            <div class="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mb-2">Authenticated Endpoint</div>
+                            <div class="flex items-center gap-3">
+                                <input type="text" value="${s.url}" readonly 
+                                    class="flex-1 bg-transparent text-xs font-mono text-blue-400 outline-none select-all cursor-pointer truncate" 
+                                    onclick="this.select()" />
+                                <button onclick="navigator.clipboard.writeText('${s.url}'); this.innerHTML='<i data-lucide=\'check\'></i>'; lucide.createIcons(); setTimeout(() => {this.innerHTML='<i data-lucide=\'copy\'></i>'; lucide.createIcons();}, 1500)" 
+                                    class="text-slate-600 hover:text-blue-400 transition-all p-1" title="Copy URL">
+                                    <i data-lucide="copy" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
-                `).join('');
+                    <button onclick="pipelineState.scanPredefinedWebsite('${s.id}')"
+                        class="w-full bg-white/5 hover:bg-blue-600 text-white font-black py-4 rounded-2xl text-[11px] uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 border border-white/10 hover:border-blue-400 shadow-lg relative z-10 group-hover:-translate-y-1">
+                        <i data-lucide="zap" class="w-4 h-4 text-emerald-400"></i> Engage Kernel Scan
+                    </button>
+                </div>
+            `).join('');
 
                 el.innerHTML = `
-                    <div class="flex justify-between items-center mb-8">
-                        <div>
-                            <h3 class="text-2xl font-black text-white tracking-tight">Application Target Registry</h3>
-                            <p class="text-slate-400 text-xs mt-1">Select a pre-connected test environment or supply a custom endpoint URL.</p>
+                <div class="flex justify-between items-end mb-10">
+                    <div>
+                        <h3 class="text-3xl font-black text-white tracking-tight italic uppercase underline decoration-blue-500 decoration-2 underline-offset-8 mb-4">Target Registry Center</h3>
+                        <p class="text-slate-500 text-xs font-black tracking-[0.2em] uppercase">Neural-linked scanning endpoints v4.0.2</p>
+                    </div>
+                    <button onclick="pipelineState.executiveScan()" 
+                        class="bg-rose-600 hover:bg-rose-500 text-white font-black uppercase tracking-[0.3em] px-10 py-5 rounded-3xl shadow-[0_20px_50px_rgba(225,29,72,0.3)] hover:shadow-[0_25px_60px_rgba(225,29,72,0.5)] hover:-translate-y-1.5 flex items-center gap-4 transition-all duration-500 border-2 border-rose-400/20">
+                        <i data-lucide="shield-alert" class="w-6 h-6 animate-pulse"></i> RUN EXECUTIVE PROTOCOL
+                    </button>
+                </div>
+                
+                <div class="glass p-12 rounded-[45px] border border-blue-500/20 bg-[#0a0a0f]/80 mb-12 shadow-3xl relative overflow-hidden group">
+                    <div class="absolute -top-32 -right-32 w-80 h-80 bg-blue-600/10 blur-[100px] rounded-full pointer-events-none group-hover:bg-blue-600/20 transition-colors"></div>
+                    <div class="flex items-center gap-8 relative z-10">
+                        <div class="w-24 h-24 rounded-3xl bg-blue-900/40 border border-blue-500/20 flex items-center justify-center shadow-inner">
+                            <i data-lucide="radar" class="w-12 h-12 text-blue-500 animate-[spin_10s_linear_infinite]"></i>
                         </div>
-                        <button onclick="pipelineState.executiveScan()" 
-                            class="bg-gradient-to-br from-rose-600 to-rose-800 hover:from-rose-500 hover:to-rose-700 text-white font-black uppercase tracking-widest px-8 py-4 rounded-2xl shadow-[0_10px_30px_rgba(244,63,94,0.3)] hover:shadow-[0_15px_40px_rgba(244,63,94,0.4)] hover:-translate-y-1 flex items-center gap-3 transition-all duration-300">
-                            <i data-lucide="shield-alert" class="w-5 h-5"></i> INITIATE EXECUTIVE OVERRIDE (ALL)
+                        <div class="flex-1">
+                            <h3 class="text-2xl font-black text-white mb-2 tracking-tight uppercase italic flex items-center gap-3">
+                                Manually Engaged Scanner <span class="text-[10px] text-blue-500 font-black border border-blue-500/40 px-3 py-1 rounded-full not-italic">REAL-TIME TYPING INSTANCE</span>
+                            </h3>
+                            <p class="text-slate-500 text-sm font-medium max-w-2xl leading-relaxed">Supply a custom endpoint URL to redirect the neural heuristic core towards any external or internal target environment.</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-6 mt-10 relative z-10">
+                        <div class="flex-1 flex items-center bg-black/60 border border-white/5 rounded-3xl px-8 focus-within:border-blue-500/50 focus-within:ring-4 focus-within:ring-blue-500/5 transition-all shadow-inner group-hover:border-white/10">
+                            <i data-lucide="anchor" class="w-6 h-6 text-slate-600 mr-4"></i>
+                            <input type="url" id="custom-url-input-registry" placeholder="https://target-endpoint-ip-or-domain.com" class="bg-transparent text-lg font-mono text-white w-full py-6 outline-none">
+                        </div>
+                        <button onclick="pipelineState.scanWebsite(document.getElementById('custom-url-input-registry').value)" 
+                            class="bg-gradient-to-br from-blue-700 to-indigo-800 hover:from-blue-600 hover:to-indigo-700 text-white font-black tracking-[0.3em] px-12 py-6 rounded-3xl shadow-[0_20px_40px_rgba(59,130,246,0.3)] hover:shadow-[0_25px_50px_rgba(59,130,246,0.5)] flex items-center gap-4 transition-all duration-500 shrink-0 hover:-translate-y-2 border border-blue-400/20">
+                            <i data-lucide="zap" class="w-5 h-5 text-emerald-400"></i> ENGAGE KERNEL
                         </button>
                     </div>
-                    
-                    <div class="glass p-8 rounded-3xl border border-blue-500/30 bg-gradient-to-br from-blue-900/20 to-indigo-900/10 mb-10 shadow-xl relative overflow-hidden">
-                        <div class="absolute right-0 top-0 w-96 h-96 bg-blue-500/10 blur-[100px] rounded-full pointer-events-none"></div>
-                        <h3 class="text-xl font-black text-white mb-2 tracking-tight relative z-10">Scan Custom Environment</h3>
-                        <p class="text-slate-400 text-xs mb-6 relative z-10 max-w-2xl text-balance">Supply a public HTTP/HTTPS URL target to engage the structural deep-scan heuristic engine across backend endpoints.</p>
-                        <div class="flex gap-4 relative z-10 group">
-                            <div class="flex-1 flex items-center bg-slate-950/80 border border-white/10 rounded-2xl px-6 focus-within:border-blue-500 transition-all shadow-inner shadow-black/50 group-hover:border-white/20">
-                                <i data-lucide="target" class="w-5 h-5 text-slate-500 mr-3"></i>
-                                <input type="url" id="custom-url-input-registry" placeholder="https://your-public-target.com" class="bg-transparent text-sm font-mono text-white w-full py-4 outline-none focus:ring-0">
-                            </div>
-                            <button onclick="pipelineState.scanWebsite(document.getElementById('custom-url-input-registry').value)" class="bg-gradient-to-b from-blue-500 to-indigo-600 hover:from-blue-400 hover:to-indigo-500 text-white font-black tracking-widest px-10 py-4 rounded-2xl shadow-[0_10px_30px_rgba(59,130,246,0.3)] hover:shadow-[0_15px_40px_rgba(59,130,246,0.4)] flex items-center gap-3 transition-all duration-300 shrink-0 hover:-translate-y-1">
-                                <i data-lucide="radar" class="w-4 h-4"></i> EXECUTE PENETRATION
-                            </button>
-                        </div>
-                    </div>
+                </div>
 
-                    <div class="grid grid-cols-4 gap-6">
-                        ${sites || '<div class="col-span-4 text-center py-20 text-slate-500 font-black tracking-[0.2em] text-[10px] uppercase">Awaiting Registry Sync...</div>'}
-                    </div>
-                `;
+                <div class="grid grid-cols-3 gap-8">
+                    ${sites || '<div class="col-span-4 text-center py-20 text-slate-500 font-black tracking-[0.2em] text-[10px] uppercase">Awaiting Registry Sync...</div>'}
+                </div>
+            `;
                 lucide.createIcons();
-            }
+            },
         };
 
         window.onload = () => app.init();
