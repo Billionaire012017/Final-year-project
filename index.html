@@ -286,8 +286,8 @@
                         this.scanFinishedFlag = true;
                         app.showToast('✅ Security Scan Complete', 'emerald');
                         if (foundCount !== undefined && foundCount > 0) {
-                            // Show queue confirmation popup immediately after findings are final
-                            setTimeout(() => app.showQueueConfirmPopup(foundCount), 1000);
+                            // Deliberate 3s delay so user can read terminal findings before popup
+                            setTimeout(() => app.showQueueConfirmPopup(foundCount), 3000);
                         }
                     }
 
@@ -886,8 +886,8 @@
                     const activeVuln = vulns.find(v => v.status.includes('PATCH') || v.status.includes('QUEUE'));
                     const isJobActive = !!activeVuln;
 
-                    status.className = `text-[11px] font-black px-6 py-2 rounded-full border uppercase tracking-[0.3em] transition-all duration-500 ${isJobActive ? 'border-blue-500 text-blue-400 bg-blue-900/30 shadow-[0_0_30px_rgba(59,130,246,0.4)] animate-pulse' : 'border-slate-800 text-slate-500 bg-slate-900/50'}`;
-                    status.innerText = isJobActive ? 'REMEDIATION IN PROGRESS' : 'ENGINE IDLE';
+                    status.className = `text-[11px] font-black px-6 py-2 rounded-full border uppercase tracking-[0.3em] transition-all duration-500 ${isJobActive || pipelineState.queuingActive ? 'border-blue-500 text-blue-400 bg-blue-900/30 shadow-[0_0_30px_rgba(59,130,246,0.4)] animate-pulse' : 'border-slate-800 text-slate-500 bg-slate-900/50'}`;
+                    status.innerText = pipelineState.queuingActive ? 'REGISTRY INGESTION' : (isJobActive ? 'REMEDIATION IN PROGRESS' : 'ENGINE IDLE');
 
                     if (taskContainer && taskUrl) {
                         if (isJobActive) {
@@ -922,16 +922,16 @@
                             }
                         } else if (pipelineState.queuingActive) {
                             taskContainer.style.display = 'block';
-                            taskUrl.innerHTML = `<span class="text-blue-500 animate-pulse">INGESTING REGISTRY:</span> Vulnerability Discovery &amp; Queuing...`;
+                            taskUrl.innerHTML = `<span class="text-blue-400 font-bold italic tracking-wider animate-pulse uppercase text-[10px]">Registry Ingestion Active:</span> <span class="text-slate-400">Processing discovered vulnerabilities...</span>`;
 
-                            // Highlight Phase 1 with specialized "SEARCH" logic
+                            // Highlight Phase 1 during ingestion
                             for (let i = 1; i <= 4; i++) {
                                 const el = document.getElementById(`phase-step-${i}`);
                                 if (!el) continue;
                                 if (i === 1) {
-                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-600/20 border border-blue-500/50 opacity-100 shadow-[0_0_25px_rgba(59,130,246,0.3)] animate-pulse transition-all duration-500';
+                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-600/20 border border-blue-500/50 opacity-100 shadow-[0_0_25px_rgba(59,130,246,0.3)] animate-pulse';
                                 } else {
-                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-20 transition-all duration-500';
+                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-20';
                                 }
                             }
                         } else {

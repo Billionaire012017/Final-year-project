@@ -829,13 +829,18 @@ def run_queuing_task():
         ).all()
         
         patch_queue.clear()
+        found_count = len(detected)
+        append_log("pipeline", f"[SYSTEM] {found_count} VULNERABILITIES IDENTIFIED IN REGISTRY.")
         
-        for vuln in detected:
+        for i, vuln in enumerate(detected):
             vuln.status = "QUEUED_FOR_PATCH"
             patch_queue.append({"vuln_id": vuln.id, "status": "QUEUED"})
-            append_log("pipeline", f"[INFO] Queuing vulnerability {vuln.id} ({vuln.vulnerability_type}) for remediation...")
+            
+            # Detailed sequential feedback
+            append_log("pipeline", f"[INGEST] ({i+1}/{found_count}) Discovered: {vuln.vulnerability_type} in {vuln.file_name}")
+            append_log("pipeline", f"[INGEST]   ↳ Mapping to Neural Core...")
             db.commit() # Commit each one so frontend sees status change
-            time.sleep(1.2) # Visual throttle for "loading format"
+            time.sleep(1.8) # Loading format cadence
             
         append_log("pipeline", "[SYSTEM] QUEUING_COMPLETE: All detected vulnerabilities are now in the remediation pipeline.", level="SUCCESS")
     finally:
@@ -893,6 +898,7 @@ def run_executive_scan_task(session_id: str):
     
     # CRITICAL: Set found_count BEFORE status="COMPLETED" for frontend sync
     terminal_sessions[session_id]["found_count"] = total_found
+    time.sleep(1.0) # Small delay for final logs to settle
     terminal_sessions[session_id]["status"] = "COMPLETED"
 
 

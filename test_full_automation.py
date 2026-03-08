@@ -2,98 +2,73 @@ import requests
 import time
 import sys
 
-API_URL = "http://127.0.0.1:8000"
+BASE_URL = "http://127.0.0.1:8000"
 
-def test_full_automation():
-    print("🚀 Starting Full Automation Integration Test...")
+def test_pipeline():
+    print("🚀 STARTING FULL PIPELINE AUTOMATION TEST")
     
     # 1. Trigger Executive Scan
     print("\n[PHASE 1] Triggering Executive Scan...")
-    try:
-        res = requests.post(f"{API_URL}/executive-scan")
-        res.raise_for_status()
-        scan_id = res.json()["scan_id"]
-        print(f"✅ Scan Started: {scan_id}")
-    except Exception as e:
-        print(f"❌ Failed to start scan: {e}")
+    res = requests.post(f"{BASE_URL}/executive-scan")
+    if res.status_code != 200:
+        print(f"❌ Scan failed: {res.text}")
         return
+    scan_id = res.json()["scan_id"]
+    print(f"✅ Scan ID: {scan_id}")
 
-    # 2. Poll for Scan Completion
-    print("\n[PHASE 2] Monitoring Scan Progress...")
-    found_count = 0
+    # Wait for Scan to complete
     while True:
-        try:
-            res = requests.get(f"{API_URL}/terminal-stream?session_id={scan_id}")
-            data = res.json()
-            status = data.get("status")
-            print(f"   Status: {status} | Logs: {len(data.get('logs', []))}")
-            
-            if status == "COMPLETED":
-                found_count = data.get("found_count", 0)
-                print(f"✅ Scan Completed. Found {found_count} vulnerabilities.")
-                break
-        except Exception as e:
-            print(f"⚠️ Polling error: {e}")
+        res = requests.get(f"{BASE_URL}/terminal-stream?session_id={scan_id}")
+        status = res.json().get("status")
+        print(f"   Scan Status: {status}...")
+        if status == "COMPLETED":
+            found_count = res.json().get("found_count", 0)
+            print(f"✅ Scan Finished. Found {found_count} vulnerabilities.")
+            break
         time.sleep(2)
 
-    if found_count == 0:
-        print("ℹ️ No vulnerabilities found to test queuing. Adding a dummy one...")
-        # Since this is a test, we expect some vulnerabilities. 
-        # But if the environment is clean, we might need to skip or force one.
-        # For this test, we assume PREDEFINED_WEBSITES has vulnerable content as per user project.
+    # 2. Trigger Queue All (Ingestion)
+    print("\n[PHASE 2] Triggering Registry Ingestion (Queue All)...")
+    res = requests.post(f"{BASE_URL}/pipeline/queue-all")
+    if res.status_code != 200:
+        print(f"❌ Queuing failed: {res.text}")
+        return
+    print("✅ Ingestion Protocol Initialized.")
 
-    # 3. Trigger Queuing
-    print("\n[PHASE 3] Triggering Background Queuing (Full Automation)...")
-    try:
-        res = requests.post(f"{API_URL}/pipeline/queue-all")
-        res.raise_for_status()
-        print("✅ Queuing Initiated.")
-    except Exception as e:
-        print(f"❌ Failed to initiate queuing: {e}")
-        # return # Proceed to see if status reflects anyway
-
-    # 4. Monitor Queuing Status
-    print("\n[PHASE 4] Monitoring Registry Ingestion...")
+    # Monitor Ingestion Logic
     while True:
-        try:
-            res = requests.get(f"{API_URL}/pipeline/status")
-            data = res.json()
-            is_active = data.get("queuing_active")
-            count = data.get("queue_count", 0)
-            print(f"   Queuing Active: {is_active} | Queue Count: {count}")
-            
-            if not is_active and count > 0:
-                print(f"✅ Queuing Complete. {count} items in registry.")
-                break
-            if not is_active and count == 0:
-                # Wait a bit more if it just started
-                time.sleep(1)
-        except Exception as e:
-            print(f"⚠️ Status polling error: {e}")
+        res = requests.get(f"{BASE_URL}/terminal-stream?session_id=pipeline")
+        logs = res.json().get("logs", [])
+        if any("QUEUING_COMPLETE" in log["message"] for log in logs):
+            print("✅ Registry Ingestion Complete.")
+            break
+        print("   Ingestion in progress...")
         time.sleep(2)
 
-    # 5. Start Remediation Kernel
-    print("\n[PHASE 5] Starting Remediation Kernel (Full Automation)...")
-    try:
-        res = requests.post(f"{API_URL}/pipeline/start")
-        res.raise_for_status()
-        print("✅ Kernel Started.")
-    except Exception as e:
-        print(f"❌ Failed to start kernel: {e}")
+    # 3. Start Remediation
+    print("\n[PHASE 3] Starting Automated Remediation Kernel...")
+    res = requests.post(f"{BASE_URL}/pipeline/start")
+    if res.status_code != 200:
+        print(f"❌ Pipeline start failed: {res.text}")
         return
+    print("✅ Remediation Phase Active.")
 
-    # 6. Verify Automation Active
-    print("\n[PHASE 6] Final Verification...")
-    try:
-        res = requests.get(f"{API_URL}/pipeline/status")
-        data = res.json()
-        if data.get("paused") == False:
-            print("✅ Automation_Active == TRUE")
-            print("🚀 FULL AUTOMATION VERIFIED SUCCESSFULLY.")
-        else:
-            print("❌ Pipeline is still paused. Automation logic failure.")
-    except Exception as e:
-        print(f"❌ Final check failed: {e}")
+    # Monitor Remediation (Check for FIXED status)
+    print("\n[PHASE 4] Monitoring Patching Cadence (20-30s per vuln)...")
+    start_time = time.time()
+    while time.time() - start_time < 120:  # Monitor for 2 minutes
+        res = requests.get(f"{BASE_URL}/vulnerabilities")
+        vulns = res.json()
+        fixed = [v for v in vulns if v["status"] == "FIXED"]
+        patching = [v for v in vulns if "PATCH" in v["status"]]
+        
+        print(f"   Status: {len(fixed)} Fixed, {len(patching)} Active Patching...")
+        if len(fixed) > 0:
+            print("✅ TEST SUCCESS: Vulnerabilities are being remediated automatically.")
+            return
+        time.sleep(5)
+
+    print("❌ TEST TIMEOUT: No vulnerabilities were fixed within 2 minutes.")
 
 if __name__ == "__main__":
-    test_full_automation()
+    test_pipeline()
