@@ -246,7 +246,8 @@
                     this.activeJob = pipe.active;
                     this.queue = pipe.queue;
 
-                    if (router.current !== 'terminal') app.render();
+                    if (router.current !== 'terminal') app.render(true);
+                    else app.renderTerminalOnly();
                 } catch (e) { console.error("Sync Error", e); }
             },
 
@@ -255,13 +256,12 @@
                     const res = await fetch(`${API_URL}/available-websites`);
                     const data = await res.json();
                     this.availableWebsites = data.websites || [];
-                    if (router.current === 'website-scanner') app.render();
+                    if (router.current === 'website-scanner') app.render(true);
                 } catch (e) { console.error("Websites Fetch Error", e); }
             },
 
             async fetchTerminal() {
                 try {
-                    // Fetch both current scan logs AND pipeline automation logs
                     const [scanRes, pipeRes] = await Promise.all([
                         fetch(`${API_URL}/terminal-stream?session_id=${this.currentScanId}`),
                         fetch(`${API_URL}/terminal-stream?session_id=pipeline`)
@@ -270,19 +270,17 @@
                     const scanData = await scanRes.json();
                     const pipeData = await pipeRes.json();
 
-                    // Combine or separate? Let's keep them separate but allow toggling
                     this.terminalLogs = scanData.logs || [];
                     this.pipelineLogs = pipeData.logs || [];
 
                     const oldStatus = this.scanStatus;
                     this.scanStatus = scanData.status || 'COMPLETED';
 
-                    // Detect scan completion to show popup
                     if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED') {
                         app.showPipelinePopup();
                     }
 
-                    if (router.current === 'terminal') app.render();
+                    if (router.current === 'terminal') app.renderTerminalOnly();
                 } catch (e) { console.error("Terminal Sync Error", e); }
             },
 
@@ -468,22 +466,41 @@
                 }
             },
 
-            render() {
+            render(isUpdate = false) {
                 const viewport = document.getElementById('viewport');
                 const page = router.current;
-                lucide.createIcons();
 
-                if (page === 'dashboard') this.renderDashboard(viewport);
-                else if (page === 'vulnerabilities') this.renderVulns(viewport);
-                else if (page === 'patch-lab') this.renderPatchLab(viewport);
-                else if (page === 'decision-tree') this.renderTree(viewport);
-                else if (page === 'system-core') this.renderSystem(viewport);
-                else if (page === 'compliance') this.renderCompliance(viewport);
-                else if (page === 'feedback') this.renderFeedback(viewport);
-                else if (page === 'terminal') this.renderTerminal(viewport);
-                else if (page === 'website-scanner') this.renderWebsiteScanner(viewport);
+                if (!isUpdate) {
+                    viewport.innerHTML = ''; // Start clean for full page switch
+                    if (page === 'dashboard') this.renderDashboard(viewport);
+                    else if (page === 'vulnerabilities') this.renderVulns(viewport);
+                    else if (page === 'patch-lab') this.renderPatchLab(viewport);
+                    else if (page === 'decision-tree') this.renderTree(viewport);
+                    else if (page === 'system-core') this.renderSystem(viewport);
+                    else if (page === 'compliance') this.renderCompliance(viewport);
+                    else if (page === 'feedback') this.renderFeedback(viewport);
+                    else if (page === 'terminal') this.renderTerminal(viewport);
+                    else if (page === 'website-scanner') this.renderWebsiteScanner(viewport);
+                    lucide.createIcons();
+                } else {
+                    // Targeted Dynamic Updates
+                    if (page === 'dashboard') {
+                        this.updateDashboardDynamic(viewport);
+                    } else if (page === 'vulnerabilities') {
+                        this.updateVulnsDynamic(viewport);
+                    } else if (page === 'website-scanner') {
+                        this.updateWebsiteScannerDynamic(viewport);
+                    }
+                }
 
                 this.renderGlobalOverlays();
+            },
+
+            renderTerminalOnly() {
+                const viewport = document.getElementById('viewport');
+                if (router.current === 'terminal') {
+                    this.updateTerminalLogs();
+                }
             },
 
             showPipelinePopup() {
@@ -659,6 +676,22 @@
                 </div>
             `;
                 lucide.createIcons();
+                this.updateDashboardDynamic(el);
+            },
+
+            updateDashboardDynamic(el) {
+                const s = pipelineState.metrics;
+                const vulns = pipelineState.vulnerabilities;
+
+                // Update basic stats
+                const stats = el.querySelectorAll('.text-7xl');
+                if (stats.length >= 4) {
+                    stats[0].innerText = s.total || 0;
+                    stats[1].innerText = s.patched || 0;
+                    stats[2].innerText = s.validated || 0;
+                    stats[3].innerText = s.risk_score || 0;
+                }
+
                 this.updateProgressBar();
             },
 
@@ -669,61 +702,147 @@
 
                 const percent = total > 0 ? Math.round((fixed / total) * 100) : 0;
 
-                setTimeout(() => {
-                    const bar = document.getElementById('pipeline-progress-bar');
-                    const label = document.getElementById('pipeline-percent');
-                    const labelLarge = document.getElementById('pipeline-percent-large');
-                    if (bar) bar.style.width = `${percent}%`;
-                    if (label) label.innerText = `${percent}%`;
-                    if (labelLarge) labelLarge.innerText = `${percent}%`;
+                const bar = document.getElementById('pipeline-progress-bar');
+                const labelLarge = document.getElementById('pipeline-percent-large');
+                if (bar) bar.style.width = `${percent}%`;
+                if (labelLarge) labelLarge.innerText = `${percent}%`;
 
-                    const status = document.getElementById('pipeline-mini-status');
-                    const taskContainer = document.getElementById('pipeline-active-task-container');
-                    const taskUrl = document.getElementById('pipeline-active-url');
+                const status = document.getElementById('pipeline-mini-status');
+                const taskContainer = document.getElementById('pipeline-active-task-container');
+                const taskUrl = document.getElementById('pipeline-active-url');
 
-                    if (status) {
-                        const activeVuln = vulns.find(v => v.status.includes('PATCH') || v.status.includes('QUEUE'));
-                        const isJobActive = !!activeVuln;
+                if (status) {
+                    const activeVuln = vulns.find(v => v.status.includes('PATCH') || v.status.includes('QUEUE'));
+                    const isJobActive = !!activeVuln;
 
-                        status.className = `text-[11px] font-black px-6 py-2 rounded-full border uppercase tracking-[0.3em] transition-all duration-500 ${isJobActive ? 'border-blue-500 text-blue-400 bg-blue-900/30 shadow-[0_0_30px_rgba(59,130,246,0.4)] animate-pulse' : 'border-slate-800 text-slate-500 bg-slate-900/50'}`;
-                        status.innerText = isJobActive ? 'REMEDIATION IN PROGRESS' : 'ENGINE IDLE';
+                    status.className = `text-[11px] font-black px-6 py-2 rounded-full border uppercase tracking-[0.3em] transition-all duration-500 ${isJobActive ? 'border-blue-500 text-blue-400 bg-blue-900/30 shadow-[0_0_30px_rgba(59,130,246,0.4)] animate-pulse' : 'border-slate-800 text-slate-500 bg-slate-900/50'}`;
+                    status.innerText = isJobActive ? 'REMEDIATION IN PROGRESS' : 'ENGINE IDLE';
 
-                        if (taskContainer && taskUrl) {
-                            if (isJobActive) {
-                                taskContainer.style.display = 'block';
-                                taskUrl.innerText = `${activeVuln.target_url || 'LOCAL ENDPOINT'} -> [${activeVuln.vulnerability_type}]`;
+                    if (taskContainer && taskUrl) {
+                        if (isJobActive) {
+                            taskContainer.style.display = 'block';
+                            taskUrl.innerText = `${activeVuln.target_url || 'LOCAL ENDPOINT'} -> [${activeVuln.vulnerability_type}]`;
 
-                                // Update phase steps
-                                const s = activeVuln.status;
-                                const steps = {
-                                    'PATCH_GENERATING': 1,
-                                    'PATCH_APPLIED': 2,
-                                    'FIXED': 4,
-                                    'FAILED': 4,
-                                    'QUEUED_FOR_PATCH': 3
-                                };
-                                const currentStep = steps[s] || 1;
+                            // Update phase steps
+                            const s = activeVuln.status;
+                            const steps = {
+                                'PATCH_GENERATING': 1,
+                                'PATCH_APPLIED': 2,
+                                'FIXED': 4,
+                                'FAILED': 4,
+                                'QUEUED_FOR_PATCH': 3
+                            };
+                            const currentStep = steps[s] || 1;
 
-                                for (let i = 1; i <= 4; i++) {
-                                    const el = document.getElementById(`phase-step-${i}`);
-                                    if (!el) continue;
-                                    if (i < currentStep) {
-                                        el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 opacity-100 shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all duration-500';
-                                        el.querySelector('i').className = 'w-5 h-5 text-emerald-400';
-                                    } else if (i === currentStep) {
-                                        el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-600/20 border border-blue-500/50 opacity-100 shadow-[0_0_25px_rgba(59,130,246,0.3)] animate-pulse transition-all duration-500';
-                                        el.querySelector('i').className = 'w-5 h-5 text-blue-400 animate-bounce';
-                                    } else {
-                                        el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-30 transition-all duration-500';
-                                        el.querySelector('i').className = i === 2 ? 'w-5 h-5 text-indigo-400' : i === 3 ? 'w-5 h-5 text-emerald-400' : i === 4 ? 'w-5 h-5 text-white' : 'w-5 h-5 text-blue-400';
-                                    }
+                            for (let i = 1; i <= 4; i++) {
+                                const el = document.getElementById(`phase-step-${i}`);
+                                if (!el) continue;
+                                if (i < currentStep) {
+                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 opacity-100 shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all duration-500';
+                                    el.querySelector('i').className = 'w-5 h-5 text-emerald-400';
+                                } else if (i === currentStep) {
+                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-600/20 border border-blue-500/50 opacity-100 shadow-[0_0_25px_rgba(59,130,246,0.3)] animate-pulse transition-all duration-500';
+                                    el.querySelector('i').className = 'w-5 h-5 text-blue-400 animate-bounce';
+                                } else {
+                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-30 transition-all duration-500';
+                                    el.querySelector('i').className = i === 2 ? 'w-5 h-5 text-indigo-400' : i === 3 ? 'w-5 h-5 text-emerald-400' : i === 4 ? 'w-5 h-5 text-white' : 'w-5 h-5 text-blue-400';
                                 }
-                            } else {
-                                taskContainer.style.display = 'none';
                             }
+                        } else {
+                            taskContainer.style.display = 'none';
                         }
                     }
-                }, 100);
+                }
+            },
+
+            updateTerminalLogs() {
+                const body = document.getElementById('terminal-body');
+                if (!body) return;
+
+                const logsHTML = app.terminalMode === 'scan' ?
+                    pipelineState.terminalLogs.map(log => {
+                        let color = 'text-emerald-500';
+                        if (log.level === 'WARNING') color = 'text-amber-400';
+                        if (log.level === 'ERROR') color = 'text-red-500';
+                        if (log.level === 'SUCCESS') color = 'text-blue-400';
+                        return `
+                            <div class="mb-1 font-mono text-xs flex gap-3 whitespace-pre-wrap">
+                                <span class="text-slate-600 shrink-0 font-bold">[${log.timestamp}]</span>
+                                <span class="text-slate-500 uppercase shrink-0 w-16 font-bold text-[10px]">${log.level}</span>
+                                <span class="${color}">${log.message}</span>
+                            </div>
+                        `;
+                    }).join('') :
+                    pipelineState.pipelineLogs.map(l => `<div class="mb-2 font-mono text-[11px] flex gap-3 leading-relaxed"><span class="text-slate-600 font-bold shrink-0">[${l.timestamp}]</span> <span class="${l.level === 'SUCCESS' ? 'text-blue-400 font-bold' : l.level === 'ERROR' ? 'text-rose-500 font-bold' : l.level === 'WARNING' ? 'text-amber-500 font-bold' : 'text-slate-400'}">${l.message}</span></div>`).join('');
+
+                // Only update if content changed or for the first time
+                if (body.innerHTML !== logsHTML) {
+                    body.innerHTML = logsHTML || `<div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Awaiting directives...</div>`;
+                    body.scrollTop = body.scrollHeight;
+                }
+            },
+
+            updateVulnsDynamic(el) {
+                const tbody = el.querySelector('tbody');
+                if (!tbody) return;
+                const rows = pipelineState.vulnerabilities.map(v => `
+                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
+                    <td class="p-6 font-mono text-[11px] text-blue-500 font-bold tracking-wider">${v.id}</td>
+                    <td class="p-6">
+                        <div class="flex flex-col gap-1">
+                            <span class="text-white font-bold text-sm tracking-tight">${v.vulnerability_type}</span>
+                            <span class="text-slate-500 text-[10px] font-mono">${v.file_name}:${v.line_number}</span>
+                        </div>
+                    </td>
+                    <td class="p-6">
+                        <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-[0.2em] uppercase border ${v.severity === 'CRITICAL' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10 shadow-[0_4px_12px_rgba(244,63,94,0.1)]' : v.severity === 'HIGH' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-blue-400 border-blue-500/30 bg-blue-500/10'}">
+                            ${v.severity}
+                        </span>
+                    </td>
+                    <td class="p-6">
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full ${v.status === 'VALIDATED' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : v.status.includes('PATCH') ? 'bg-blue-500 animate-pulse' : 'bg-rose-500'}"></span>
+                            <span class="text-[10px] uppercase font-black tracking-widest ${v.status === 'VALIDATED' ? 'text-emerald-400' : v.status.includes('PATCH') ? 'text-blue-400' : 'text-rose-400'}">${v.status}</span>
+                        </div>
+                    </td>
+                </tr>`).join('');
+                if (tbody.innerHTML !== rows) {
+                    tbody.innerHTML = rows;
+                }
+            },
+
+            updateWebsiteScannerDynamic(el) {
+                const container = el.querySelector('.grid.grid-cols-2.gap-8.mt-12');
+                if (!container) return;
+
+                const sites = pipelineState.availableWebsites.map(s => `
+                <div class="glass p-8 rounded-[30px] border border-white/5 hover:border-blue-500/30 transition-all flex flex-col justify-between group bg-black/40 relative overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                    <div class="relative z-10">
+                        <div class="flex items-center gap-4 mb-6">
+                            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-slate-800 to-black border border-white/10 flex items-center justify-center text-blue-400 shadow-lg group-hover:scale-110 transition-transform">
+                                <i data-lucide="globe" class="w-7 h-7"></i>
+                            </div>
+                            <div>
+                                <h4 class="text-white font-black leading-tight text-lg tracking-tight italic uppercase">${s.name}</h4>
+                                <div class="text-[9px] text-blue-500 font-black tracking-[0.2em] uppercase">Target ID: ${s.id}</div>
+                            </div>
+                        </div>
+                        <div class="bg-[#050505] rounded-2xl p-4 mb-6 border border-white/5 shadow-inner">
+                            <div class="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mb-2">Authenticated Endpoint</div>
+                            <div class="text-xs font-mono text-emerald-500 truncate bg-emerald-500/5 p-2 rounded-lg border border-emerald-500/10">${s.url}</div>
+                        </div>
+                    </div>
+                    <button onclick="pipelineState.scanPredefinedWebsite('${s.id}')" 
+                        class="w-full py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-black uppercase tracking-[0.2em] text-[10px] hover:bg-blue-600 hover:border-blue-500 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] transition-all relative z-10 active:scale-95">
+                        Initialize Neural Audit
+                    </button>
+                </div>`).join('');
+
+                if (container.innerHTML !== sites) {
+                    container.innerHTML = sites;
+                    lucide.createIcons();
+                }
             },
 
             renderVulns(el) {
