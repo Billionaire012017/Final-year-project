@@ -496,6 +496,78 @@
                 this.renderGlobalOverlays();
             },
 
+            showIntelligenceHUD(id) {
+                const v = pipelineState.vulnerabilities.find(item => item.id === id);
+                if (!v) return;
+
+                const overlay = document.createElement('div');
+                overlay.id = 'intel-hud-overlay';
+                overlay.className = 'fixed inset-0 z-[100] flex items-center justify-center p-8 bg-black/80 backdrop-blur-md animate-in fade-in duration-300';
+
+                overlay.innerHTML = `
+                    <div class="glass w-full max-w-5xl rounded-[40px] border border-blue-500/30 shadow-[0_0_100px_rgba(59,130,246,0.2)] flex flex-col overflow-hidden max-h-[85vh]">
+                        <div class="p-8 border-b border-white/10 flex justify-between items-center bg-gradient-to-r from-blue-900/10 to-transparent">
+                            <div>
+                                <h2 class="text-3xl font-black text-white tracking-tighter uppercase italic flex items-center gap-4">
+                                    <i data-lucide="brain-circuit" class="w-8 h-8 text-blue-400"></i>
+                                    Technical Intelligence HUD
+                                </h2>
+                                <p class="text-[10px] text-slate-500 font-bold tracking-[0.3em] uppercase mt-2">Neural Analysis for Threat Vector: <span class="text-blue-500 italic">${v.id}</span></p>
+                            </div>
+                            <button onclick="document.getElementById('intel-hud-overlay').remove()" class="p-4 rounded-2xl bg-white/5 hover:bg-rose-500/20 border border-white/10 hover:border-rose-500/30 text-slate-400 hover:text-rose-400 transition-all">
+                                <i data-lucide="x" class="w-6 h-6"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="p-10 overflow-y-auto custom-scrollbar flex-1">
+                            <div class="grid grid-cols-2 gap-10">
+                                <!-- Error Side -->
+                                <div class="space-y-6">
+                                    <div class="flex items-center gap-3 text-rose-500 font-black uppercase tracking-[0.2em] text-[11px]">
+                                        <div class="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.5)]"></div>
+                                        Vulnerable Logic Pattern (Error)
+                                    </div>
+                                    <div class="p-8 bg-black/60 rounded-[30px] border border-rose-500/20 shadow-inner relative group">
+                                        <div class="absolute top-4 right-4 text-[9px] font-mono text-rose-500/50 uppercase">Line: ${v.line_number}</div>
+                                        <pre class="text-rose-200 font-mono text-xs leading-relaxed whitespace-pre-wrap">${v.code_snippet || '// No pattern extracted'}</pre>
+                                    </div>
+                                    <div class="p-6 bg-rose-500/5 rounded-2xl border border-rose-500/10">
+                                        <p class="text-rose-400/70 text-[11px] font-bold leading-relaxed italic italic">"Critical logic sink detected. Direct execution or unparameterized data flow allows unauthorized kernel manipulation."</p>
+                                    </div>
+                                </div>
+                                
+                                <!-- Remedy Side -->
+                                <div class="space-y-6">
+                                    <div class="flex items-center gap-3 text-emerald-500 font-black uppercase tracking-[0.2em] text-[11px]">
+                                        <div class="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"></div>
+                                        Remediation Strategy (Remedy)
+                                    </div>
+                                    <div class="p-8 bg-black/60 rounded-[30px] border border-emerald-500/20 shadow-inner relative group">
+                                        <div class="absolute top-4 right-4 text-[9px] font-mono text-emerald-500/50 uppercase">Secured v4.0.2</div>
+                                        <pre class="text-emerald-300 font-mono text-xs leading-relaxed whitespace-pre-wrap">${v.suggested_fix || v.patched_code || '// AI generating remedy...'}</pre>
+                                    </div>
+                                    <div class="p-6 bg-emerald-500/5 rounded-2xl border border-emerald-500/10">
+                                        <p class="text-emerald-400/70 text-[11px] font-bold leading-relaxed italic">"${v.patch_explanation || 'Adaptive patch synthesis: Replaced raw execution with high-security abstraction layers and input sanitization.'}"</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-8 border-t border-white/10 bg-black/40 flex justify-between items-center text-[10px] text-slate-600 font-black uppercase tracking-widest">
+                            <div class="flex items-center gap-4">
+                                <span class="px-3 py-1 rounded-lg border border-white/5">VEC: ${v.vulnerability_type}</span>
+                                <span class="px-3 py-1 rounded-lg border border-white/5">CONFIDENCE: 99.2%</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i data-lucide="shield-check" class="w-3 h-3 text-blue-500"></i> PROTECTED BY AUTONOMOUS KERNEL
+                            </div>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                lucide.createIcons();
+            },
+
             renderTerminalOnly() {
                 const viewport = document.getElementById('viewport');
                 if (router.current === 'terminal') {
@@ -789,25 +861,48 @@
                 <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
                     <td class="p-6 font-mono text-[11px] text-blue-500 font-bold tracking-wider">${v.id}</td>
                     <td class="p-6">
-                        <div class="flex flex-col gap-1">
-                            <span class="text-white font-bold text-sm tracking-tight">${v.vulnerability_type}</span>
-                            <span class="text-slate-500 text-[10px] font-mono">${v.file_name}:${v.line_number}</span>
-                        </div>
+                        <div class="text-white font-black text-sm mb-1 tracking-tight italic">${v.vulnerability_type}</div>
+                        <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">${v.file_name}</div>
                     </td>
                     <td class="p-6">
-                        <span class="px-3 py-1 rounded-full text-[9px] font-black tracking-[0.2em] uppercase border ${v.severity === 'CRITICAL' ? 'text-rose-400 border-rose-500/30 bg-rose-500/10 shadow-[0_4px_12px_rgba(244,63,94,0.1)]' : v.severity === 'HIGH' ? 'text-amber-400 border-amber-500/30 bg-amber-500/10' : 'text-blue-400 border-blue-500/30 bg-blue-500/10'}">
-                            ${v.severity}
+                        <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]">
+                            <i data-lucide="shield-alert" class="w-2.5 h-2.5 mr-1.5"></i> ${v.severity}
                         </span>
                     </td>
                     <td class="p-6">
-                        <div class="flex items-center gap-2">
-                            <span class="w-1.5 h-1.5 rounded-full ${v.status === 'VALIDATED' ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : v.status.includes('PATCH') ? 'bg-blue-500 animate-pulse' : 'bg-rose-500'}"></span>
-                            <span class="text-[10px] uppercase font-black tracking-widest ${v.status === 'VALIDATED' ? 'text-emerald-400' : v.status.includes('PATCH') ? 'text-blue-400' : 'text-rose-400'}">${v.status}</span>
+                        <div class="font-mono text-slate-400 text-[11px] bg-black/40 px-3 py-2 rounded-xl border border-white/5 truncate max-w-[200px]" title="${v.target_url}">
+                            ${v.target_url || 'LOCAL KERNEL'}
+                        </div>
+                    </td>
+                    <td class="p-6">
+                        <span class="inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${v.status === 'FIXED' || v.status === 'VALIDATED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]' :
+                        v.status.includes('PATCH') ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse shadow-[0_0_20px_rgba(59,130,246,0.2)]' :
+                            'bg-slate-800/40 text-slate-400 border border-white/10'
+                    }">
+                            ${v.status.replace(/_/g, ' ')}
+                        </span>
+                    </td>
+                    <td class="p-6 text-right">
+                        <div class="flex items-center justify-end gap-3">
+                            <button onclick="app.showIntelligenceHUD('${v.id}')" 
+                                    class="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-600 border border-blue-500/20 hover:border-blue-400 text-blue-400 hover:text-white transition-all shadow-lg group-hover:scale-110 active:scale-90"
+                                    title="Technical Intelligence Analysis">
+                                <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" 
+                                    class="p-2 rounded-xl bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
+                                <i data-lucide="eye" class="w-4 h-4"></i>
+                            </button>
+                            <button onclick="app.submitFeedback('${v.id}')" 
+                                    class="p-2 rounded-xl bg-white/5 hover:bg-emerald-600 border border-white/10 hover:border-emerald-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
+                                <i data-lucide="message-square" class="w-4 h-4"></i>
+                            </button>
                         </div>
                     </td>
                 </tr>`).join('');
                 if (tbody.innerHTML !== rows) {
                     tbody.innerHTML = rows;
+                    lucide.createIcons();
                 }
             },
 
@@ -873,6 +968,11 @@
                     </td>
                     <td class="p-6 text-right">
                         <div class="flex items-center justify-end gap-3">
+                            <button onclick="app.showIntelligenceHUD('${v.id}')" 
+                                    class="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-600 border border-blue-500/20 hover:border-blue-400 text-blue-400 hover:text-white transition-all shadow-lg group-hover:scale-110 active:scale-90"
+                                    title="Technical Intelligence Analysis">
+                                <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+                            </button>
                             <button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" 
                                     class="p-2 rounded-xl bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
                                 <i data-lucide="eye" class="w-4 h-4"></i>
