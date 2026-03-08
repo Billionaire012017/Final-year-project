@@ -247,8 +247,9 @@
                     this.queue = Array.isArray(pipe.queue) ? pipe.queue : [];
                     this.queueCount = pipe.queue_count || 0;
 
-                    if (router.current !== 'terminal') app.render(true);
-                    else app.renderTerminalOnly();
+                    // NEVER call app.render() here - that causes blinking.
+                    // Only update specific data-bound elements without re-building the DOM shell.
+                    app.smartUpdate();
                 } catch (e) { console.error("Sync Error", e); }
             },
 
@@ -898,15 +899,16 @@
                             for (let i = 1; i <= 4; i++) {
                                 const el = document.getElementById(`phase-step-${i}`);
                                 if (!el) continue;
+                                const icon = el.querySelector('i, svg');
                                 if (i < currentStep) {
                                     el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 opacity-100 shadow-[0_0_20px_rgba(16,185,129,0.1)] transition-all duration-500';
-                                    el.querySelector('i').className = 'w-5 h-5 text-emerald-400';
+                                    if (icon) icon.className.baseVal = 'lucide lucide-check-circle-2 w-5 h-5 text-emerald-400';
                                 } else if (i === currentStep) {
                                     el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-600/20 border border-blue-500/50 opacity-100 shadow-[0_0_25px_rgba(59,130,246,0.3)] animate-pulse transition-all duration-500';
-                                    el.querySelector('i').className = 'w-5 h-5 text-blue-400 animate-bounce';
+                                    if (icon) icon.className.baseVal = 'lucide lucide-cpu w-5 h-5 text-blue-400 animate-bounce';
                                 } else {
                                     el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-30 transition-all duration-500';
-                                    el.querySelector('i').className = i === 2 ? 'w-5 h-5 text-indigo-400' : i === 3 ? 'w-5 h-5 text-emerald-400' : i === 4 ? 'w-5 h-5 text-white' : 'w-5 h-5 text-blue-400';
+                                    if (icon) icon.className.baseVal = `lucide w-5 h-5 ${i === 2 ? 'text-indigo-400' : i === 3 ? 'text-emerald-400' : i === 4 ? 'text-white' : 'text-blue-400'}`;
                                 }
                             }
                         } else {
@@ -989,51 +991,57 @@
             updateVulnsDynamic(el) {
                 const tbody = el.querySelector('tbody');
                 if (!tbody) return;
-                const rows = pipelineState.vulnerabilities.map(v => `
-                <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
-                    <td class="p-6 font-mono text-[11px] text-blue-500 font-bold tracking-wider">${v.id}</td>
-                    <td class="p-6">
-                        <div class="text-white font-black text-sm mb-1 tracking-tight italic">${v.vulnerability_type}</div>
-                        <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">${v.file_name}</div>
-                    </td>
-                    <td class="p-6">
-                        <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]">
-                            <i data-lucide="shield-alert" class="w-2.5 h-2.5 mr-1.5"></i> ${v.severity}
-                        </span>
-                    </td>
-                    <td class="p-6">
-                        <div class="font-mono text-slate-400 text-[11px] bg-black/40 px-3 py-2 rounded-xl border border-white/5 truncate max-w-[200px]" title="${v.target_url}">
-                            ${v.target_url || 'LOCAL KERNEL'}
-                        </div>
-                    </td>
-                    <td class="p-6">
-                        <span class="inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${v.status === 'FIXED' || v.status === 'VALIDATED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]' :
-                        v.status.includes('PATCH') ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse shadow-[0_0_20px_rgba(59,130,246,0.2)]' :
-                            'bg-slate-800/40 text-slate-400 border border-white/10'
-                    }">
-                            ${v.status.replace(/_/g, ' ')}
-                        </span>
-                    </td>
-                    <td class="p-6 text-right">
-                        <div class="flex items-center justify-end gap-3">
-                            <button onclick="app.showIntelligenceHUD('${v.id}')" 
-                                    class="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-600 border border-blue-500/20 hover:border-blue-400 text-blue-400 hover:text-white transition-all shadow-lg group-hover:scale-110 active:scale-90"
-                                    title="Technical Intelligence Analysis">
-                                <i data-lucide="brain-circuit" class="w-4 h-4"></i>
-                            </button>
-                            <button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" 
-                                    class="p-2 rounded-xl bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
-                                <i data-lucide="eye" class="w-4 h-4"></i>
-                            </button>
-                            <button onclick="app.submitFeedback('${v.id}')" 
-                                    class="p-2 rounded-xl bg-white/5 hover:bg-emerald-600 border border-white/10 hover:border-emerald-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
-                                <i data-lucide="message-square" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>`).join('');
-                if (tbody.innerHTML !== rows) {
+
+                // Create a hash based on the content that changes (id + status)
+                const stateHash = pipelineState.vulnerabilities.map(v => v.id + '-' + v.status).join('|');
+
+                if (tbody.getAttribute('data-render-hash') !== stateHash) {
+                    const rows = pipelineState.vulnerabilities.map(v => `
+                    <tr class="border-b border-white/5 hover:bg-white/[0.02] transition-colors group">
+                        <td class="p-6 font-mono text-[11px] text-blue-500 font-bold tracking-wider">${v.id}</td>
+                        <td class="p-6">
+                            <div class="text-white font-black text-sm mb-1 tracking-tight italic">${v.vulnerability_type}</div>
+                            <div class="text-[10px] text-slate-500 font-bold uppercase tracking-widest">${v.file_name}</div>
+                        </td>
+                        <td class="p-6">
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-rose-500/10 text-rose-500 border border-rose-500/20 shadow-[0_0_15px_rgba(244,63,94,0.1)]">
+                                <i data-lucide="shield-alert" class="w-2.5 h-2.5 mr-1.5"></i> ${v.severity}
+                            </span>
+                        </td>
+                        <td class="p-6">
+                            <div class="font-mono text-slate-400 text-[11px] bg-black/40 px-3 py-2 rounded-xl border border-white/5 truncate max-w-[200px]" title="${v.target_url}">
+                                ${v.target_url || 'LOCAL KERNEL'}
+                            </div>
+                        </td>
+                        <td class="p-6">
+                            <span class="inline-flex items-center px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${v.status === 'FIXED' || v.status === 'VALIDATED' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.2)]' :
+                            v.status.includes('PATCH') ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse shadow-[0_0_20px_rgba(59,130,246,0.2)]' :
+                                'bg-slate-800/40 text-slate-400 border border-white/10'
+                        }">
+                                ${v.status.replace(/_/g, ' ')}
+                            </span>
+                        </td>
+                        <td class="p-6 text-right">
+                            <div class="flex items-center justify-end gap-3">
+                                <button onclick="app.showIntelligenceHUD('${v.id}')" 
+                                        class="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-600 border border-blue-500/20 hover:border-blue-400 text-blue-400 hover:text-white transition-all shadow-lg group-hover:scale-110 active:scale-90"
+                                        title="Technical Intelligence Analysis">
+                                    <i data-lucide="brain-circuit" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="pipelineState.activeVulnId = '${v.id}'; router.go('patch-lab')" 
+                                        class="p-2 rounded-xl bg-white/5 hover:bg-blue-600 border border-white/10 hover:border-blue-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
+                                    <i data-lucide="eye" class="w-4 h-4"></i>
+                                </button>
+                                <button onclick="app.submitFeedback('${v.id}')" 
+                                        class="p-2 rounded-xl bg-white/5 hover:bg-emerald-600 border border-white/10 hover:border-emerald-400 text-slate-400 hover:text-white transition-all shadow-lg group-hover:scale-110">
+                                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>`).join('');
+
                     tbody.innerHTML = rows;
+                    tbody.setAttribute('data-render-hash', stateHash);
                     lucide.createIcons();
                 }
             },
@@ -1066,10 +1074,16 @@
                     </button>
                 </div>`).join('');
 
-                if (container.innerHTML !== sites) {
+                const hash = pipelineState.availableWebsites.map(s => s.id).join(',');
+                if (container.getAttribute('data-render-hash') !== hash) {
                     container.innerHTML = sites;
+                    container.setAttribute('data-render-hash', hash);
                     lucide.createIcons();
                 }
+            },
+
+            smartUpdate() {
+                this.render(true);
             },
 
             renderVulns(el) {
