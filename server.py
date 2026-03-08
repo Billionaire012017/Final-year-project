@@ -16,6 +16,8 @@ import random
 import ast
 import regex as re
 import threading
+import hashlib
+import time
 
 # --- GLOBAL LOGS & SESSIONS ---
 terminal_sessions = {}
@@ -243,7 +245,6 @@ def validate_patch_logic(v_type, patched_code):
     pattern = unsafe_patterns.get(v_type)
     if not pattern: return True
     
-    import re
     if re.search(pattern, code_only):
         return False
     return True
@@ -295,8 +296,6 @@ def run_patch_pipeline(job):
         db.commit()
         
         # Accelerated Pipeline Cycles
-        import time
-        import random
         time.sleep(random.uniform(0.4, 0.8))
         append_log("pipeline", f"[INFO] AI Engine analyzing abstract syntax tree for {vuln_id}...")
         time.sleep(random.uniform(0.5, 1.0))
@@ -340,7 +339,6 @@ def run_patch_pipeline(job):
         db.close()
         active_patch = None
         # Minimal delay for continuity
-        import time
         time.sleep(0.5)
         
         # If it was a warning, re-queue it
