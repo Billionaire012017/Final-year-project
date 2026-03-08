@@ -276,10 +276,18 @@
 
                     const oldStatus = this.scanStatus;
                     this.scanStatus = scanData.status || 'COMPLETED';
+                    const foundCount = scanData.found_count;
 
-                    // Show pipeline confirmation popup only when scan just finished and pipeline is paused
-                    if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED' && this.paused) {
-                        app.showPipelinePopup();
+                    // Detect when executive scan just finished → show Queue popup
+                    if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED' && !this.executiveScanFinished) {
+                        this.executiveScanFinished = true;
+                        if (foundCount !== undefined) {
+                            // This was an executive scan — show queue confirmation popup
+                            setTimeout(() => app.showQueueConfirmPopup(foundCount), 500);
+                        } else {
+                            // Regular scan finished — show start-pipeline popup
+                            if (this.paused) setTimeout(() => app.showPipelinePopup(), 500);
+                        }
                     }
 
                     if (router.current === 'terminal') app.renderTerminalOnly();
@@ -360,7 +368,10 @@
                     if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
-                    app.terminalMode = 'pipeline';
+                    this.executiveScanFinished = false; // Reset flag for popup
+                    // Always go to terminal Scanner Logic tab
+                    app.terminalMode = 'scan';
+                    app.lastPage = null; // Force re-render
                     router.go('terminal');
                 } catch (e) {
                     console.error("Executive Scan Failed", e);
@@ -580,33 +591,101 @@
             },
 
             showPipelinePopup() {
-                const count = pipelineState.vulnerabilities.filter(v => v.status === 'DETECTED' || v.status === 'QUEUED_FOR_PATCH').length;
-                if (count === 0 || !pipelineState.paused) return; // Don't show if empty or already running
+                // For regular scans (non-executive): ask to start remediation directly
+                const count = pipelineState.vulnerabilities.filter(v => v.status === 'DETECTED').length;
+                if (count === 0) return;
+                if (document.getElementById('pipeline-modal')) return;
+                this.showStartRemediationPopup(count);
+            },
 
-                // Prevent duplicate modals
+            // POPUP 1: After executive scan - "We found X errors. Queue them?"
+            async showQueueConfirmPopup(foundCount) {
                 if (document.getElementById('pipeline-modal')) return;
 
                 const overlay = document.createElement('div');
                 overlay.id = 'pipeline-modal';
                 overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl px-6';
                 overlay.innerHTML = `
-                    <div class="glass max-w-lg w-full p-10 rounded-[40px] border-blue-500/40 shadow-[0_0_80px_rgba(59,130,246,0.3)] text-center animate-in zoom-in duration-500">
-                        <div class="w-24 h-24 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse border border-blue-500/30">
-                            <i data-lucide="shield-alert" class="w-12 h-12"></i>
+                    <div class="glass max-w-lg w-full p-10 rounded-[40px] border border-rose-500/30 shadow-[0_0_80px_rgba(225,29,72,0.2)] text-center animate-in zoom-in duration-500">
+                        <div class="w-24 h-24 bg-rose-600/20 text-rose-400 rounded-full flex items-center justify-center mx-auto mb-8 border border-rose-500/30">
+                            <i data-lucide="shield-x" class="w-12 h-12"></i>
                         </div>
-                        <h3 class="text-3xl font-black text-white mb-4 tracking-tighter italic uppercase">Security Audit Complete</h3>
-                        <p class="text-slate-400 mb-10 font-bold leading-relaxed">
-                            "We found <span class="text-blue-400 text-xl font-black px-2">${count} errors</span> in the system registry. Can I start the auto-remediation kernel to eliminate these threats?"
+                        <h3 class="text-3xl font-black text-white mb-4 tracking-tighter uppercase">Scan Complete</h3>
+                        <p class="text-slate-300 mb-10 font-bold leading-relaxed text-base">
+                            We found <span class="text-rose-400 text-2xl font-black px-2">${foundCount} error${foundCount !== 1 ? 's' : ''}</span>
+                            in the system registry.<br/>
+                            <span class="text-slate-500 text-sm mt-2 block">Now I'm going to queue them one-by-one for remediation.<br/>Shall I start queuing?</span>
                         </p>
-                        
                         <div class="flex gap-4">
-                            <button onclick="document.getElementById('pipeline-modal').remove()" 
+                            <button onclick="document.getElementById('pipeline-modal').remove()"
+                                class="flex-1 px-8 py-5 rounded-2xl border border-white/10 text-slate-500 font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-all active:scale-95">
+                                Skip
+                            </button>
+                            <button id="btn-queue-all"
+                                onclick="app.queueAllAndAskToStart()"
+                                class="flex-1 px-8 py-5 rounded-2xl bg-rose-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-rose-500 shadow-[0_10px_30px_rgba(225,29,72,0.4)] transition-all active:scale-95">
+                                Yes, Queue Them
+                            </button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                lucide.createIcons();
+            },
+
+            // Called when user accepts queue popup
+            async queueAllAndAskToStart() {
+                const btn = document.getElementById('btn-queue-all');
+                if (btn) { btn.innerText = 'Queuing...'; btn.disabled = true; }
+
+                // Switch terminal to automation tab to show queuing logs
+                this.switchTerminalMode('pipeline');
+
+                try {
+                    const res = await fetch(`${API_URL}/pipeline/queue-all`, { method: 'POST' });
+                    const data = await res.json();
+                    const queued = data.queued || 0;
+
+                    // Close queue popup
+                    const modal = document.getElementById('pipeline-modal');
+                    if (modal) modal.remove();
+
+                    // Short delay then show start popup
+                    setTimeout(() => this.showStartRemediationPopup(queued), 800);
+                } catch (e) {
+                    console.error("Queue All Failed", e);
+                    const modal = document.getElementById('pipeline-modal');
+                    if (modal) modal.remove();
+                    alert('Failed to queue vulnerabilities: ' + e.message);
+                }
+            },
+
+            // POPUP 2: After queuing - "X queued. Start automated remediation?"
+            showStartRemediationPopup(count) {
+                if (document.getElementById('pipeline-modal')) return;
+
+                const overlay = document.createElement('div');
+                overlay.id = 'pipeline-modal';
+                overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-xl px-6';
+                overlay.innerHTML = `
+                    <div class="glass max-w-lg w-full p-10 rounded-[40px] border border-blue-500/40 shadow-[0_0_80px_rgba(59,130,246,0.3)] text-center animate-in zoom-in duration-500">
+                        <div class="w-24 h-24 bg-blue-600/20 text-blue-400 rounded-full flex items-center justify-center mx-auto mb-8 animate-pulse border border-blue-500/30">
+                            <i data-lucide="cpu" class="w-12 h-12"></i>
+                        </div>
+                        <h3 class="text-3xl font-black text-white mb-4 tracking-tighter uppercase">Queue Ready</h3>
+                        <p class="text-slate-300 mb-10 font-bold leading-relaxed text-base">
+                            <span class="text-blue-400 text-2xl font-black px-2">${count} vulnerabilit${count !== 1 ? 'ies' : 'y'}</span>
+                            ${count !== 1 ? 'are' : 'is'} queued and ready.<br/>
+                            <span class="text-slate-500 text-sm mt-2 block">Shall I start the auto-remediation kernel?<br/>Each vulnerability will be processed one-by-one (~25s each).</span>
+                        </p>
+                        <div class="flex gap-4">
+                            <button onclick="document.getElementById('pipeline-modal').remove()"
                                 class="flex-1 px-8 py-5 rounded-2xl border border-white/10 text-slate-500 font-black uppercase tracking-widest text-[10px] hover:bg-white/5 transition-all active:scale-95">
                                 Monitor Only
                             </button>
-                            <button onclick="pipelineState.startPipeline(); document.getElementById('pipeline-modal').remove()" 
+                            <button onclick="pipelineState.startPipeline(); document.getElementById('pipeline-modal').remove()"
                                 class="flex-1 px-8 py-5 rounded-2xl bg-blue-600 text-white font-black uppercase tracking-widest text-[10px] hover:bg-blue-500 shadow-[0_10px_30px_rgba(37,99,235,0.4)] transition-all active:scale-95">
-                                Accept & Execute
+                                Accept &amp; Execute
                             </button>
                         </div>
                     </div>

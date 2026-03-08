@@ -781,21 +781,51 @@ def scan_website_manual(payload: dict, background_tasks: BackgroundTasks):
     return {"scan_id": session_id}
 
 @app.post("/executive-scan")
-def executive_scan():
+def executive_scan(background_tasks: BackgroundTasks):
+    """
+    Phase 1: Scan all predefined websites and log errors to Scanner terminal.
+    Does NOT queue vulnerabilities for patching - user must confirm via /pipeline/queue-all.
+    """
+    global pipeline_paused
+    pipeline_paused = True  # Ensure paused at start of new scan
+    
     session_id = "executive-" + str(uuid.uuid4())[:8]
-    terminal_sessions[session_id] = {"logs": [], "status": "QUEUED"}
+    terminal_sessions[session_id] = {"logs": [], "status": "RUNNING"}
+    background_tasks.add_task(run_executive_scan_task, session_id)
     
-    job = {
-        "scan_id": session_id,
-        "type": "executive",
-        "status": "QUEUED"
-    }
-    scan_queue.append(job)
-    append_log(session_id, "[INFO] Job added to queue.")
+    return {"scan_id": session_id, "status": "RUNNING"}
+
+@app.post("/pipeline/queue-all")
+def queue_all_detected():
+    """
+    Phase 2: Queue all DETECTED vulnerabilities for patching (but stay paused).
+    User must confirm /pipeline/start to actually begin remediation.
+    """
+    global pipeline_paused, patch_queue
+    pipeline_paused = True  # Stay paused until user explicitly starts
     
-    process_queue()
-    
-    return {"scan_id": session_id, "status": "QUEUED"}
+    db = SessionLocal()
+    try:
+        # Get all vulnerabilities that are DETECTED (not yet queued or fixed)
+        detected = db.query(Vulnerability).filter(
+            Vulnerability.status.in_(["DETECTED", "FAILED"])
+        ).all()
+        
+        # Clear existing queue first to avoid duplicates
+        patch_queue.clear()
+        
+        count = 0
+        for vuln in detected:
+            vuln.status = "QUEUED_FOR_PATCH"
+            patch_queue.append({"vuln_id": vuln.id, "status": "QUEUED"})
+            append_log("pipeline", f"[QUEUE] Vulnerability {vuln.id} ({vuln.vulnerability_type}) added to remediation queue.")
+            count += 1
+        
+        db.commit()
+        return {"queued": count, "status": "paused", "message": f"{count} vulnerabilities queued. Awaiting user confirmation to start remediation."}
+    finally:
+        db.close()
+
 
 @app.get("/queue-status")
 def get_queue_status():
@@ -805,24 +835,50 @@ def get_queue_status():
     }
 
 def run_executive_scan_task(session_id: str):
-    append_log(session_id, "Initializing Executive Multi-Website Audit...")
+    """
+    Scans all predefined websites, logs all discovered vulnerabilities
+    to the Scanner terminal. Does NOT queue anything for patching.
+    Sets session status to COMPLETED when done so the frontend knows to ask
+    the user if they want to queue vulnerabilities.
+    """
+    append_log(session_id, "━━━ EXECUTIVE SECURITY AUDIT INITIATED ━━━", level="INFO")
+    append_log(session_id, f"Scanning {len(PREDEFINED_WEBSITES)} target endpoints...")
+    
     db = SessionLocal()
-    # Create single master session for Executive scan
-    scan_session = ScanSession(total_files_scanned=len(PREDEFINED_WEBSITES), total_vulnerabilities=0, overall_risk_score=0)
+    scan_session = ScanSession(
+        total_files_scanned=len(PREDEFINED_WEBSITES),
+        total_vulnerabilities=0,
+        overall_risk_score=0
+    )
     db.add(scan_session)
     db.commit()
     db.refresh(scan_session)
     db.close()
 
-    for site in PREDEFINED_WEBSITES:
-        append_log(session_id, f"--- Starting audit for {site['name']} ---")
-        try:
-            scan_website_core(site["url"], session_id, site["name"], scan_session.id)
-        except Exception as e:
-            append_log(session_id, f"Could not connect to {site['name']}: {str(e)}", level="WARNING")
+    total_found = 0
     
-    append_log(session_id, "Executive Scan Completed Successfully.", level="SUCCESS")
+    for site in PREDEFINED_WEBSITES:
+        append_log(session_id, f"")
+        append_log(session_id, f"[SCAN] ► Auditing: {site['name']}", level="INFO")
+        append_log(session_id, f"[SCAN]   URL: {site['url']}")
+        try:
+            found = scan_website_core_scan_only(site["url"], session_id, site["name"], scan_session.id)
+            total_found += found
+            if found == 0:
+                append_log(session_id, f"[SCAN]   ✓ No critical vulnerabilities found in {site['name']}", level="SUCCESS")
+            else:
+                append_log(session_id, f"[SCAN]   ⚠ Found {found} vulnerability(s) in {site['name']}", level="WARNING")
+        except Exception as e:
+            append_log(session_id, f"[SCAN]   ✗ Could not connect to {site['name']}: {str(e)}", level="WARNING")
+    
+    append_log(session_id, f"")
+    append_log(session_id, f"━━━ SCAN COMPLETE ━━━", level="SUCCESS")
+    append_log(session_id, f"Total vulnerabilities found: {total_found}", level="SUCCESS")
+    
+    # Store the count in the session for frontend to read
+    terminal_sessions[session_id]["found_count"] = total_found
     terminal_sessions[session_id]["status"] = "COMPLETED"
+
 
 def scan_website_task(url: str, session_id: str, app_name: str):
     db = SessionLocal()
@@ -839,6 +895,111 @@ def scan_website_task(url: str, session_id: str, app_name: str):
     except Exception as e:
         append_log(session_id, f"Scan failed: {str(e)}", level="ERROR")
         terminal_sessions[session_id]["status"] = "COMPLETED"
+
+def scan_website_core_scan_only(url: str, session_id: str, app_name: str, scan_session_id: int) -> int:
+    """
+    Scans a website for vulnerabilities, logs detailed findings to terminal,
+    saves them as DETECTED in DB, but does NOT add to patch_queue.
+    Returns the count of new vulnerabilities found.
+    """
+    db = SessionLocal()
+    found_count = 0
+    
+    try:
+        response = requests.get(url, timeout=10)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        append_log(session_id, f"[SCAN]   Parsing {len(soup.find_all('script'))} script blocks...")
+        
+        scripts = soup.find_all('script')
+        for script in scripts:
+            content = script.string if script.string else ""
+            if not content: continue
+            
+            lines = content.split('\n')
+            for line_num, line in enumerate(lines):
+                stripped = line.strip()
+                v_type = None
+                risk = 0.0
+                
+                if "eval(" in stripped: v_type = "EVAL_INJECTION"; risk = 10.0
+                elif "innerHTML" in stripped and "=" in stripped: v_type = "DOM_XSS"; risk = 7.0
+                elif "document.write(" in stripped: v_type = "DOM_XSS"; risk = 6.0
+                
+                if v_type and v_type in ALLOWED_VULN_TYPES:
+                    existing = db.query(Vulnerability).filter(
+                        Vulnerability.file_name == app_name,
+                        Vulnerability.line_number == line_num + 1,
+                        Vulnerability.vulnerability_type == v_type
+                    ).first()
+                    
+                    is_new = False
+                    if not existing:
+                        if not validate_patch_logic(v_type, stripped):
+                            is_new = True
+                    elif existing.status == "FAILED":
+                        is_new = True
+                    
+                    if is_new:
+                        v_id = f"WEB-{random.randint(10000, 99999)}"
+                        remediation = get_remediation_info(v_type, stripped)
+                        db_vuln = Vulnerability(
+                            id=v_id, scan_session_id=scan_session_id,
+                            file_name=app_name, line_number=line_num + 1,
+                            vulnerability_type=v_type,
+                            severity="HIGH" if risk > 7 else "MEDIUM",
+                            code_snippet=stripped[:200] if stripped else f"<{v_type}> in script",
+                            risk_score=risk, target_url=url,
+                            suggested_fix=remediation["suggested_fix"],
+                            diff=remediation["diff"],
+                            patch_explanation=remediation.get("explanation"),
+                            status="DETECTED",
+                            last_scan_timestamp=datetime.datetime.utcnow()
+                        )
+                        db.add(db_vuln)
+                        db.commit()
+                        found_count += 1
+                        # Log to scanner terminal
+                        append_log(session_id, f"[ERROR] {v_type} @ Line {line_num+1} in {app_name}", level="ERROR")
+                        append_log(session_id, f"[ERROR]   Pattern: {stripped[:80]}...", level="ERROR")
+        
+        # Check forms for SQL injection
+        forms = soup.find_all('form')
+        for form in forms:
+            inputs = form.find_all('input')
+            for inp in inputs:
+                if inp.get('type') == 'text' or not inp.get('type'):
+                    v_type = "SQL_INJECTION"
+                    snippet = f"Form input name='{inp.get('name', 'unnamed')}'"
+                    existing = db.query(Vulnerability).filter(
+                        Vulnerability.file_name == app_name,
+                        Vulnerability.vulnerability_type == v_type,
+                        Vulnerability.code_snippet == snippet
+                    ).first()
+                    if not existing:
+                        v_id = f"WEB-{random.randint(10000, 99999)}"
+                        remediation = get_remediation_info(v_type, snippet)
+                        db_vuln = Vulnerability(
+                            id=v_id, scan_session_id=scan_session_id,
+                            file_name=app_name, line_number=0,
+                            vulnerability_type=v_type, severity="LOW",
+                            code_snippet=snippet, risk_score=3.0, target_url=url,
+                            suggested_fix=remediation["suggested_fix"],
+                            diff=remediation["diff"],
+                            patch_explanation=remediation.get("explanation"),
+                            status="DETECTED",
+                            last_scan_timestamp=datetime.datetime.utcnow()
+                        )
+                        db.add(db_vuln)
+                        db.commit()
+                        found_count += 1
+                        append_log(session_id, f"[ERROR] SQL_INJECTION risk: Unsanitized form field '{inp.get('name', 'unnamed')}' in {app_name}", level="ERROR")
+
+    except Exception as e:
+        append_log(session_id, f"[WARN] Error scanning {app_name}: {str(e)}", level="WARNING")
+    finally:
+        db.close()
+    
+    return found_count
 
 def scan_website_core(url: str, session_id: str, app_name: str, scan_session_id: int):
     append_log(session_id, f"Connecting to {app_name}...")
