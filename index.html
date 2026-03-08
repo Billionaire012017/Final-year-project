@@ -498,11 +498,14 @@
                     lucide.createIcons();
                 } else {
                     // Targeted Dynamic Updates
-                    if (page === 'dashboard') {
-                        this.updateDashboardDynamic(viewport);
-                    } else if (page === 'vulnerabilities') {
-                        this.updateVulnsDynamic(viewport);
-                    } else if (page === 'website-scanner') {
+                    this.renderAutomationStatus(viewport);
+                    if (page === 'dashboard') this.updateDashboardDynamic(viewport);
+                    else if (page === 'vulnerabilities') this.updateVulnsDynamic(viewport);
+                    else if (page === 'terminal') this.updateTerminalLogs();
+                    else if (page === 'decision-tree') this.updateTreeDynamic(viewport);
+                    else if (page === 'system-core') this.updateSystemDynamic(viewport);
+                    else if (page === 'compliance') this.updateComplianceDynamic(viewport);
+                    else if (page === 'website-scanner') {
                         this.updateWebsiteScannerDynamic(viewport);
                     }
                 }
@@ -1395,7 +1398,7 @@
                     <div class="glass p-8 rounded-3xl text-center border-l-4 border-emerald-500 relative overflow-hidden shadow-[0_10px_30px_-15px_rgba(16,185,129,0.3)]">
                         <div class="absolute inset-0 bg-emerald-500/5"></div>
                         <div class="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] mb-3 relative z-10">Total Fixed</div>
-                        <div class="text-6xl font-black text-emerald-400 relative z-10 tracking-tighter">${c.total_fixed || 0}</div>
+                        <div id="compliance-total-fixed" class="text-6xl font-black text-emerald-400 relative z-10 tracking-tighter">${c.total_fixed || 0}</div>
                     </div>
                     <div class="glass p-8 rounded-3xl text-center border-l-4 border-rose-500 relative overflow-hidden shadow-[0_10px_30px_-15px_rgba(244,63,94,0.3)]">
                         <div class="absolute inset-0 bg-rose-500/5"></div>
@@ -1408,100 +1411,128 @@
                         <div class="text-6xl font-black text-blue-400 relative z-10 tracking-tighter">${c.closed_count || 0}</div>
                     </div>
                 </div>
-                
-                <div class="grid grid-cols-2 gap-8">
-                    <div class="glass p-10 rounded-3xl flex flex-col h-[500px]">
-                        <h3 class="text-white font-black text-xl mb-6 tracking-tight">Fix Breakdown by Type</h3>
-                        <div class="flex-1 overflow-y-auto pr-4 custom-scrollbar">
-                            ${breakdownHTML || '<div class="text-slate-500 text-center py-8 font-black uppercase tracking-[0.2em] text-[10px]">No fixes recorded yet</div>'}
-                        </div>
-                    </div>
-                    
-                    <div class="glass p-10 rounded-3xl flex flex-col h-[500px]">
-                        <h3 class="text-white font-black text-xl mb-6 tracking-tight">Recent Fix History</h3>
-                        <div class="flex-1 overflow-auto custom-scrollbar">
-                            <table class="w-full text-left text-sm">
-                                <thead class="text-[9px] text-slate-400 font-black uppercase tracking-[0.2em] sticky top-0 bg-slate-900 border-b border-white/10 z-10 shadow-md">
-                                    <tr>
-                                        <th class="p-4 bg-black/40 backdrop-blur-md">Date</th>
-                                        <th class="p-4 bg-black/40 backdrop-blur-md">Type</th>
-                                        <th class="p-4 bg-black/40 backdrop-blur-md">File</th>
-                                        <th class="p-4 bg-black/40 backdrop-blur-md">Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody class="divide-y divide-white/5">
-                                    ${historyHTML || '<tr><td colspan="4" class="p-8 text-center text-slate-500 font-black uppercase tracking-[0.2em] text-[10px]">No history available</td></tr>'}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
+                <div id="compliance-container-dynamic" data-render-hash="">
+                    <!-- Dynamic Content -->
                 </div>
             `;
+                this.updateComplianceDynamic(el);
             },
 
+            updateWebsiteScannerDynamic(el) {
+                // Keep the "Executive Scan" button in sync with engine status
+                const btn = document.querySelector('button[onclick*="executiveScan"]');
+                if (btn) {
+                    const isScanning = pipelineState.scanStatus === 'RUNNING';
+                    if (isScanning) {
+                        btn.innerText = 'SCANNING IN PROGRESS...';
+                        btn.disabled = true;
+                        btn.classList.add('opacity-50', 'animate-pulse');
+                    } else {
+                        btn.innerHTML = '<i data-lucide="shield-alert" class="w-6 h-6 animate-pulse"></i> RUN EXECUTIVE PROTOCOL';
+                        btn.disabled = false;
+                        btn.classList.remove('opacity-50', 'animate-pulse');
+                        lucide.createIcons();
+                    }
+                }
+            },
+
+            updateTreeDynamic(el) {
+                const vulns = pipelineState.vulnerabilities;
+                const detected = vulns.filter(v => v.status === 'DETECTED').length;
+                const patched = vulns.filter(v => v.status === 'PATCHED').length;
+                const validated = vulns.filter(v => v.status === 'VALIDATED').length;
+
+                const steps = [
+                    { id: 'tree-step-detected', count: detected },
+                    { id: 'tree-step-patched', count: patched },
+                    { id: 'tree-step-validated', count: validated }
+                ];
+
+                steps.forEach(s => {
+                    const node = document.getElementById(s.id);
+                    if (node) {
+                        const countEl = node.querySelector('.text-3xl');
+                        if (countEl) countEl.innerText = s.count;
+                        if (s.count > 0) {
+                            node.classList.add('animate-pulse', 'border-blue-500', 'bg-blue-500/10');
+                        }
+                    }
+                });
+            },
+
+            updateSystemDynamic(el) {
+                const s = pipelineState.systemCore;
+                const accuracyEl = document.getElementById('system-accuracy-val');
+                const riskEl = document.getElementById('system-risk-val');
+                if (accuracyEl) accuracyEl.innerText = `${s.engine_accuracy || 0}%`;
+                if (riskEl) riskEl.innerText = s.current_risk_score || 0;
+            },
+
+            updateComplianceDynamic(el) {
+                const c = pipelineState.complianceData;
+                const totalEl = document.getElementById('compliance-total-fixed');
+                if (totalEl) totalEl.innerText = c.total_fixed || 0;
+            },
             renderFeedback(el) {
                 const f = pipelineState.feedbackData;
                 const comments = (f.comments || []).map(c => `
-                    <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-lg mb-3">
-                        <div class="flex justify-between items-center mb-2">
-                            <span class="text-blue-400 font-mono text-xs">${c.vulnerability_id}</span>
-                            <div class="flex gap-1 text-amber-500">
-                                ${Array(c.rating).fill('★').join('')}
-                            </div>
+                <div class="bg-slate-900/50 border border-slate-800 p-4 rounded-lg mb-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-blue-400 font-mono text-xs">${c.vulnerability_id}</span>
+                        <div class="flex gap-1 text-amber-500">
+                            ${Array(c.rating).fill('★').join('')}
                         </div>
-                        <p class="text-slate-300 text-sm italic">"${c.comment}"</p>
-                        <div class="mt-2 text-right text-[10px] text-slate-600 uppercase font-bold">${c.created_at}</div>
                     </div>
-                `).join('');
+                    <p class="text-slate-300 text-sm italic">"${c.comment}"</p>
+                    <div class="mt-2 text-right text-[10px] text-slate-600 uppercase font-bold">${c.created_at}</div>
+                </div>`).join('');
 
                 el.innerHTML = `
-                    <div class="grid grid-cols-2 gap-8 h-[600px]">
-                        <div class="glass p-10 rounded-3xl flex flex-col items-center justify-center text-center relative overflow-hidden border border-amber-500/20 shadow-[0_10px_40px_-15px_rgba(245,158,11,0.2)]">
-                            <div class="absolute inset-0 bg-amber-500/5 blur-3xl rounded-full"></div>
-                            <div class="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] mb-4 relative z-10">Average Security Rating</div>
-                            <div class="text-9xl font-black text-amber-500 mb-6 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)] relative z-10">${f.average_rating || 0}</div>
-                            <div class="flex gap-2 text-3xl text-amber-500 mb-8 relative z-10">
-                                ${Array(Math.round(f.average_rating || 0)).fill('★').join('')}
-                            </div>
-                            <div class="px-4 py-1.5 rounded-full border border-amber-500/30 bg-amber-900/20 text-[10px] tracking-widest font-black text-amber-400 uppercase relative z-10">${f.total_feedback || 0} Submissions</div>
+                <div class="grid grid-cols-2 gap-8 h-[600px]">
+                    <div class="glass p-10 rounded-3xl flex flex-col items-center justify-center text-center relative overflow-hidden border border-amber-500/20 shadow-[0_10px_40px_-15px_rgba(245,158,11,0.2)]">
+                        <div class="absolute inset-0 bg-amber-500/5 blur-3xl rounded-full"></div>
+                        <div class="text-[11px] text-slate-400 font-black uppercase tracking-[0.2em] mb-4 relative z-10">Average Security Rating</div>
+                        <div class="text-9xl font-black text-amber-500 mb-6 drop-shadow-[0_0_15px_rgba(245,158,11,0.5)] relative z-10">${f.average_rating || 0}</div>
+                        <div class="flex gap-2 text-3xl text-amber-500 mb-8 relative z-10">
+                            ${Array(Math.round(f.average_rating || 0)).fill('★').join('')}
                         </div>
-                        
-                        <div class="flex flex-col h-full glass rounded-3xl border border-white/5 p-8 relative overflow-hidden">
-                            <h3 class="text-white font-black text-xl mb-6 tracking-tight relative z-10">Community Feedback</h3>
-                            <div class="flex-1 overflow-y-auto pr-4 custom-scrollbar relative z-10">
-                                ${comments || '<div class="h-full flex items-center justify-center text-slate-500 font-black uppercase tracking-[0.2em] text-[10px]">No feedback submitted yet.<br>Validate a patch to submit feedback.</div>'}
-                            </div>
+                        <div class="px-4 py-1.5 rounded-full border border-amber-500/30 bg-amber-900/20 text-[10px] tracking-widest font-black text-amber-400 uppercase relative z-10">${f.total_feedback || 0} Submissions</div>
+                    </div>
+                    
+                    <div class="flex flex-col h-full glass rounded-3xl border border-white/5 p-8 relative overflow-hidden">
+                        <h3 class="text-white font-black text-xl mb-6 tracking-tight relative z-10">Community Feedback</h3>
+                        <div class="flex-1 overflow-y-auto pr-4 custom-scrollbar relative z-10">
+                            ${comments || '<div class="h-full flex items-center justify-center text-slate-500 font-black uppercase tracking-[0.2em] text-[10px]">No feedback submitted yet.<br>Validate a patch to submit feedback.</div>'}
                         </div>
                     </div>
-                `;
+                </div>`;
             },
 
             // Called once when navigating to terminal - builds static shell
             renderTerminal(el) {
                 el.innerHTML = `
-                    <div class="h-full flex flex-col glass rounded-3xl border border-white/10 overflow-hidden shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
-                        <div class="bg-black/60 backdrop-blur-xl px-6 py-4 border-b border-white/10 flex items-center justify-between shadow-md">
-                            <div class="flex items-center gap-6">
-                                <button id="term-tab-scan"
-                                    onclick="app.switchTerminalMode('scan')"
-                                    class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 text-blue-400 border-b-2 border-blue-500">
-                                    Scanner Logic
-                                </button>
-                                <button id="term-tab-pipeline"
-                                    onclick="app.switchTerminalMode('pipeline')"
-                                    class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 text-slate-500 hover:text-white">
-                                    Automation Kernel
-                                </button>
-                            </div>
-                            <div class="text-[9px] text-slate-600 font-black uppercase tracking-[0.3em] flex items-center gap-2">
-                                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse block"></span> Live Shell Console
-                            </div>
+                <div class="h-full flex flex-col glass rounded-3xl border border-white/10 overflow-hidden shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
+                    <div class="bg-black/60 backdrop-blur-xl px-6 py-4 border-b border-white/10 flex items-center justify-between shadow-md">
+                        <div class="flex items-center gap-6">
+                            <button id="term-tab-scan"
+                                onclick="app.switchTerminalMode('scan')"
+                                class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 ${this.terminalMode === 'scan' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}">
+                                Scanner Logic
+                            </button>
+                            <button id="term-tab-pipeline"
+                                onclick="app.switchTerminalMode('pipeline')"
+                                class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 ${this.terminalMode === 'pipeline' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}">
+                                Automation Kernel
+                            </button>
                         </div>
-                        <div id="terminal-body" class="flex-1 p-8 overflow-y-auto custom-scrollbar font-mono bg-[#050505] border-t border-black">
-                            <div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Initializing console...</div>
+                        <div class="text-[9px] text-slate-600 font-black uppercase tracking-[0.3em] flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse block"></span> Live Shell Console
                         </div>
                     </div>
-                `;
+                    <div id="terminal-body" class="flex-1 p-8 overflow-y-auto custom-scrollbar font-mono bg-[#050505] border-t border-black">
+                        <div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Initializing console...</div>
+                    </div>
+                </div>`;
                 // Populate with correct segment on first render
                 this.updateTerminalLogs();
             },
@@ -1551,8 +1582,7 @@
                         class="w-full bg-white/5 hover:bg-blue-600 text-white font-black py-4 rounded-2xl text-[11px] uppercase tracking-[0.3em] transition-all flex items-center justify-center gap-3 border border-white/10 hover:border-blue-400 shadow-lg relative z-10 group-hover:-translate-y-1">
                         <i data-lucide="zap" class="w-4 h-4 text-emerald-400"></i> Engage Kernel Scan
                     </button>
-                </div>
-            `).join('');
+                </div>`).join('');
 
                 el.innerHTML = `
                 <div class="flex justify-between items-end mb-10">
