@@ -284,9 +284,10 @@
                     // Detect when ANY scan just finished → show Queue popup
                     if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED' && !this.scanFinishedFlag) {
                         this.scanFinishedFlag = true;
+                        app.showToast('✅ Security Scan Complete', 'emerald');
                         if (foundCount !== undefined && foundCount > 0) {
-                            // Show queue confirmation popup asking user to start the standard automation flow
-                            setTimeout(() => app.showQueueConfirmPopup(foundCount), 3000);
+                            // Show queue confirmation popup immediately after findings are final
+                            setTimeout(() => app.showQueueConfirmPopup(foundCount), 1000);
                         }
                     }
 

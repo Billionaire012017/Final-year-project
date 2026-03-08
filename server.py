@@ -891,7 +891,7 @@ def run_executive_scan_task(session_id: str):
     append_log(session_id, f"━━━ SCAN COMPLETE ━━━", level="SUCCESS")
     append_log(session_id, f"Total vulnerabilities found: {total_found}", level="SUCCESS")
     
-    # Store the count in the session for frontend to read
+    # CRITICAL: Set found_count BEFORE status="COMPLETED" for frontend sync
     terminal_sessions[session_id]["found_count"] = total_found
     terminal_sessions[session_id]["status"] = "COMPLETED"
 
@@ -907,6 +907,7 @@ def scan_website_task(url: str, session_id: str, app_name: str):
     try:
         found_count = scan_website_core(url, session_id, app_name, scan_session.id)
         append_log(session_id, "Scan Completed Successfully.", level="SUCCESS")
+        # CRITICAL: Set found_count BEFORE status="COMPLETED"
         terminal_sessions[session_id]["found_count"] = found_count
         terminal_sessions[session_id]["status"] = "COMPLETED"
     except Exception as e:
