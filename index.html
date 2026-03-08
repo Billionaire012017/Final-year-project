@@ -226,6 +226,7 @@
             currentScanId: 'default',
             scanStatus: 'COMPLETED',
             activeVulnId: null,
+            queuingActive: false,
 
             async fetchAll() {
                 try {
@@ -244,6 +245,7 @@
                     this.availableWebsites = sites.websites || [];
                     this.paused = pipe.paused;
                     this.activeJob = pipe.active;
+                    this.queuingActive = pipe.queuing_active;
                     this.queue = Array.isArray(pipe.queue) ? pipe.queue : [];
                     this.queueCount = pipe.queue_count || 0;
 
@@ -300,23 +302,7 @@
                 } catch (e) { console.error("Start Pipeline Failed", e); }
             },
 
-            async scanWebsite(url) {
-                console.log("[ACTION] Scan Website:", url);
-                try {
-                    const res = await fetch(`${API_URL}/scan-website`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ url })
-                    });
-                    const data = await res.json();
-                    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
-                    this.currentScanId = data.scan_id;
-                    router.go('terminal');
-                } catch (e) {
-                    console.error("Web Scan Failed", e);
-                    alert(`Web Scan Failed: ${e.message}`);
-                }
-            },
+
 
             async scanWebsite(url) {
                 if (!url || !url.startsWith('http')) {
@@ -330,8 +316,11 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ url: url })
                     });
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        throw new Error(errorText || `HTTP ${res.status}`);
+                    }
                     const data = await res.json();
-                    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
                     this.scanFinishedFlag = false;
@@ -366,8 +355,11 @@
                 console.log("[ACTION] Executive Scan Started");
                 try {
                     const res = await fetch(`${API_URL}/executive-scan`, { method: 'POST' });
+                    if (!res.ok) {
+                        const errorText = await res.text();
+                        throw new Error(errorText || `HTTP ${res.status}`);
+                    }
                     const data = await res.json();
-                    if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
                     this.currentScanId = data.scan_id;
                     this.scanStatus = 'RUNNING';
                     this.scanFinishedFlag = false; // Reset flag for popup
@@ -642,27 +634,35 @@
             // Called when user accepts queue popup
             async queueAllAndAskToStart() {
                 const btn = document.getElementById('btn-queue-all');
-                if (btn) { btn.innerText = 'Queuing...'; btn.disabled = true; }
+                if (btn) { btn.innerText = 'Initializing Ingestion...'; btn.disabled = true; }
 
                 // Switch terminal to automation tab to show queuing logs
                 this.switchTerminalMode('pipeline');
+                router.go('terminal'); // Force navigate to see the logs
 
                 try {
                     const res = await fetch(`${API_URL}/pipeline/queue-all`, { method: 'POST' });
-                    const data = await res.json();
-                    const queued = data.queued || 0;
+                    if (!res.ok) throw new Error('Ingestion failed');
 
                     // Close queue popup
                     const modal = document.getElementById('pipeline-modal');
                     if (modal) modal.remove();
 
-                    // Short delay then show start popup
-                    setTimeout(() => this.showStartRemediationPopup(queued), 800);
+                    // Monitor terminal for completion
+                    let checkInterval = setInterval(() => {
+                        const lastLog = pipelineState.pipelineLogs[pipelineState.pipelineLogs.length - 1];
+                        if (lastLog && lastLog.message.includes('QUEUING_COMPLETE')) {
+                            clearInterval(checkInterval);
+                            // Show start popup with the final count
+                            const queuedCount = pipelineState.vulnerabilities.filter(v => v.status === 'QUEUED_FOR_PATCH').length;
+                            this.showStartRemediationPopup(queuedCount);
+                        }
+                    }, 500);
                 } catch (e) {
                     console.error("Queue All Failed", e);
                     const modal = document.getElementById('pipeline-modal');
                     if (modal) modal.remove();
-                    alert('Failed to queue vulnerabilities: ' + e.message);
+                    alert('Failed to initialize queuing: ' + e.message);
                 }
             },
 
@@ -914,6 +914,20 @@
                                 } else {
                                     el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-30 transition-all duration-500';
                                     if (icon) icon.className.baseVal = `lucide w-5 h-5 ${i === 2 ? 'text-indigo-400' : i === 3 ? 'text-emerald-400' : i === 4 ? 'text-white' : 'text-blue-400'}`;
+                                }
+                            }
+                        } else if (pipelineState.queuingActive) {
+                            taskContainer.style.display = 'block';
+                            taskUrl.innerHTML = `<span class="text-blue-500 animate-pulse">INGESTING REGISTRY:</span> Vulnerability Discovery &amp; Queuing...`;
+
+                            // Highlight Phase 1 with specialized "SEARCH" logic
+                            for (let i = 1; i <= 4; i++) {
+                                const el = document.getElementById(`phase-step-${i}`);
+                                if (!el) continue;
+                                if (i === 1) {
+                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-blue-600/20 border border-blue-500/50 opacity-100 shadow-[0_0_25px_rgba(59,130,246,0.3)] animate-pulse transition-all duration-500';
+                                } else {
+                                    el.className = 'flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-20 transition-all duration-500';
                                 }
                             }
                         } else {

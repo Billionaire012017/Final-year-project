@@ -26,6 +26,7 @@ active_scan = None
 patch_queue = []
 active_patch = None
 pipeline_paused = True # Default to paused until user confirms
+queuing_active = False # New flag to track background queuing process
 
 def process_queue():
     global active_scan
@@ -147,6 +148,14 @@ async def no_cache(request, call_next):
     response = await call_next(request)
     response.headers["Cache-Control"] = "no-store"
     return response
+
+@app.get("/", response_class=HTMLResponse)
+def read_root():
+    index_path = os.path.join(PROJECT_ROOT, "index.html")
+    if not os.path.exists(index_path):
+        return HTMLResponse(content="<h1>SecLAB: Frontend Index Not Found</h1>", status_code=404)
+    with open(index_path, "r", encoding="utf-8") as f:
+        return f.read()
 
 @app.get("/version")
 def get_version():
@@ -367,6 +376,7 @@ def get_pipeline_status():
         "active": active_patch,
         "queue": [{"vuln_id": j["vuln_id"], "status": j["status"]} for j in patch_queue],
         "paused": pipeline_paused,
+        "queuing_active": queuing_active,
         "queue_count": len(patch_queue)
     }
 
@@ -795,36 +805,42 @@ def executive_scan(background_tasks: BackgroundTasks):
     return {"scan_id": session_id, "status": "RUNNING"}
 
 @app.post("/pipeline/queue-all")
-def queue_all_detected():
+def queue_all_detected(background_tasks: BackgroundTasks):
     """
     Phase 2: Queue all DETECTED vulnerabilities for patching (but stay paused).
     User must confirm /pipeline/start to actually begin remediation.
+    Runs in background to allow terminal logs to stream in real-time.
     """
-    global pipeline_paused, patch_queue
-    pipeline_paused = True  # Stay paused until user explicitly starts
+    global pipeline_paused, queuing_active
+    pipeline_paused = True
+    queuing_active = True
     
+    append_log("pipeline", "[SYSTEM] INITIALIZING REGISTRY INGESTION PROTOCOL...")
+    background_tasks.add_task(run_queuing_task)
+    
+    return {"status": "queuing_started", "message": "Background queuing initiated."}
+
+def run_queuing_task():
+    global patch_queue, queuing_active
     db = SessionLocal()
     try:
-        # Get all vulnerabilities that are DETECTED (not yet queued or fixed)
         detected = db.query(Vulnerability).filter(
             Vulnerability.status.in_(["DETECTED", "FAILED"])
         ).all()
         
-        # Clear existing queue first to avoid duplicates
         patch_queue.clear()
         
-        count = 0
         for vuln in detected:
             vuln.status = "QUEUED_FOR_PATCH"
             patch_queue.append({"vuln_id": vuln.id, "status": "QUEUED"})
             append_log("pipeline", f"[INFO] Queuing vulnerability {vuln.id} ({vuln.vulnerability_type}) for remediation...")
-            count += 1
-            time.sleep(1.0) # Visually queue one-by-one
-        
-        db.commit()
-        return {"queued": count, "status": "paused", "message": f"{count} vulnerabilities queued. Awaiting user confirmation to start remediation."}
+            db.commit() # Commit each one so frontend sees status change
+            time.sleep(1.2) # Visual throttle for "loading format"
+            
+        append_log("pipeline", "[SYSTEM] QUEUING_COMPLETE: All detected vulnerabilities are now in the remediation pipeline.", level="SUCCESS")
     finally:
         db.close()
+        queuing_active = False
 
 
 @app.get("/queue-status")
