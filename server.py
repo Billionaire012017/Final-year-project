@@ -291,15 +291,15 @@ def run_patch_pipeline(job):
         vuln = db.query(Vulnerability).filter(Vulnerability.id == vuln_id).first()
         if not vuln: return
         
-        append_log("pipeline", f"[INFO] Generating patch for {vuln_id}...")
+        append_log("pipeline", f"[INFO] Starting remediation for {vuln_id}...")
         vuln.status = "PATCH_GENERATING"
         db.commit()
         
         # Professional Deliberate Pipeline Cycles (20-30s total)
         time.sleep(random.uniform(4.0, 6.0))
-        append_log("pipeline", f"[INFO] AI Engine analyzing abstract syntax tree for {vuln_id}...")
+        append_log("pipeline", f"[INFO] Analyzing conditions for {vuln_id}...")
         time.sleep(random.uniform(6.0, 8.0))
-        append_log("pipeline", f"[INFO] Synthesizing secure code replacement...")
+        append_log("pipeline", f"[INFO] Creating remedy for {vuln_id}...")
         time.sleep(random.uniform(4.0, 6.0))
         
         # Phase 4: Generate unique patch
@@ -311,10 +311,10 @@ def run_patch_pipeline(job):
         vuln.status = "PATCH_APPLIED"
         db.commit()
         
-        append_log("pipeline", f"[INFO] Validating patch for {vuln_id}...")
-        time.sleep(random.uniform(3.0, 5.0))
-        append_log("pipeline", f"[INFO] Running security simulation on patched code...")
-        time.sleep(random.uniform(5.0, 7.0))
+        append_log("pipeline", f"[INFO] Updating conditions and validating patch for {vuln_id}...")
+        time.sleep(random.uniform(4.0, 6.0))
+        append_log("pipeline", f"[INFO] Finalizing secure deployment...")
+        time.sleep(random.uniform(4.0, 6.0))
         
         # Phase 5: Validate
         is_fixed = validate_patch_logic(vuln.vulnerability_type, vuln.patched_code)
@@ -817,8 +817,9 @@ def queue_all_detected():
         for vuln in detected:
             vuln.status = "QUEUED_FOR_PATCH"
             patch_queue.append({"vuln_id": vuln.id, "status": "QUEUED"})
-            append_log("pipeline", f"[QUEUE] Vulnerability {vuln.id} ({vuln.vulnerability_type}) added to remediation queue.")
+            append_log("pipeline", f"[INFO] Queuing vulnerability {vuln.id} ({vuln.vulnerability_type}) for remediation...")
             count += 1
+            time.sleep(1.0) # Visually queue one-by-one
         
         db.commit()
         return {"queued": count, "status": "paused", "message": f"{count} vulnerabilities queued. Awaiting user confirmation to start remediation."}
@@ -962,6 +963,7 @@ def scan_website_core_scan_only(url: str, session_id: str, app_name: str, scan_s
                         # Log to scanner terminal
                         append_log(session_id, f"[ERROR] {v_type} @ Line {line_num+1} in {app_name}", level="ERROR")
                         append_log(session_id, f"[ERROR]   Pattern: {stripped[:80]}...", level="ERROR")
+                        time.sleep(0.5) # Stream visually fastly
         
         # Check forms for SQL injection
         forms = soup.find_all('form')
@@ -994,6 +996,7 @@ def scan_website_core_scan_only(url: str, session_id: str, app_name: str, scan_s
                         db.commit()
                         found_count += 1
                         append_log(session_id, f"[ERROR] SQL_INJECTION risk: Unsanitized form field '{inp.get('name', 'unnamed')}' in {app_name}", level="ERROR")
+                        time.sleep(0.5)
 
     except Exception as e:
         append_log(session_id, f"[WARN] Error scanning {app_name}: {str(e)}", level="WARNING")
@@ -1096,6 +1099,7 @@ def scan_website_core(url: str, session_id: str, app_name: str, scan_session_id:
                             db.commit()
 
                         detected_vulns.append(db_vuln)
+                        time.sleep(0.5)
 
         forms = soup.find_all('form')
         for form in forms:
@@ -1141,6 +1145,7 @@ def scan_website_core(url: str, session_id: str, app_name: str, scan_session_id:
                             db.commit()
 
                         detected_vulns.append(db_vuln)
+                        time.sleep(0.5)
 
         if not detected_vulns:
             append_log(session_id, "No vulnerabilities detected.", level="SUCCESS")

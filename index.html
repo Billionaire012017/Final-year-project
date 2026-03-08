@@ -284,7 +284,7 @@
                         this.scanFinishedFlag = true;
                         if (foundCount !== undefined && foundCount > 0) {
                             // Show queue confirmation popup asking user to start the standard automation flow
-                            setTimeout(() => app.showQueueConfirmPopup(foundCount), 500);
+                            setTimeout(() => app.showQueueConfirmPopup(foundCount), 3000);
                         }
                     }
 
@@ -794,15 +794,15 @@
                             <div class="mt-8 grid grid-cols-4 gap-4">
                                 <div id="phase-step-1" class="flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-40 transition-all duration-500">
                                     <i data-lucide="search" class="w-5 h-5 text-blue-400"></i>
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Spectral Analysis</span>
+                                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Starting Remediation</span>
                                 </div>
                                 <div id="phase-step-2" class="flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-40 transition-all duration-500">
                                     <i data-lucide="cpu" class="w-5 h-5 text-indigo-400"></i>
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Neural Synthesis</span>
+                                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Creating Remedy</span>
                                 </div>
                                 <div id="phase-step-3" class="flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-40 transition-all duration-500">
                                     <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
-                                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Kernel Validation</span>
+                                    <span class="text-[9px] font-black uppercase tracking-widest text-slate-400 text-center">Updating Conditions</span>
                                 </div>
                                 <div id="phase-step-4" class="flex flex-col items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 opacity-40 transition-all duration-500">
                                     <i data-lucide="check-circle-2" class="w-5 h-5 text-white"></i>
@@ -893,11 +893,11 @@
                             // Update phase steps
                             const s = activeVuln.status;
                             const steps = {
-                                'PATCH_GENERATING': 1,
-                                'PATCH_APPLIED': 2,
+                                'QUEUED_FOR_PATCH': 1,
+                                'PATCH_GENERATING': 2,
+                                'PATCH_APPLIED': 3,
                                 'FIXED': 4,
-                                'FAILED': 4,
-                                'QUEUED_FOR_PATCH': 3
+                                'FAILED': 4
                             };
                             const currentStep = steps[s] || 1;
 
