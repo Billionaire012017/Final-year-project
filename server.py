@@ -365,7 +365,7 @@ def start_pipeline():
 def get_pipeline_status():
     return {
         "active": active_patch,
-        "queue": patch_queue,
+        "queue": [{"vuln_id": j["vuln_id"], "status": j["status"]} for j in patch_queue],
         "paused": pipeline_paused,
         "queue_count": len(patch_queue)
     }

@@ -244,7 +244,8 @@
                     this.availableWebsites = sites.websites || [];
                     this.paused = pipe.paused;
                     this.activeJob = pipe.active;
-                    this.queue = pipe.queue;
+                    this.queue = Array.isArray(pipe.queue) ? pipe.queue : [];
+                    this.queueCount = pipe.queue_count || 0;
 
                     if (router.current !== 'terminal') app.render(true);
                     else app.renderTerminalOnly();
@@ -276,7 +277,8 @@
                     const oldStatus = this.scanStatus;
                     this.scanStatus = scanData.status || 'COMPLETED';
 
-                    if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED') {
+                    // Show pipeline confirmation popup only when scan just finished and pipeline is paused
+                    if (oldStatus === 'RUNNING' && this.scanStatus === 'COMPLETED' && this.paused) {
                         app.showPipelinePopup();
                     }
 
@@ -839,27 +841,70 @@
                 const body = document.getElementById('terminal-body');
                 if (!body) return;
 
-                const logsHTML = app.terminalMode === 'scan' ?
-                    pipelineState.terminalLogs.map(log => {
-                        let color = 'text-emerald-500';
-                        if (log.level === 'WARNING') color = 'text-amber-400';
-                        if (log.level === 'ERROR') color = 'text-red-500';
-                        if (log.level === 'SUCCESS') color = 'text-blue-400';
-                        return `
-                            <div class="mb-1 font-mono text-xs flex gap-3 whitespace-pre-wrap">
-                                <span class="text-slate-600 shrink-0 font-bold">[${log.timestamp}]</span>
-                                <span class="text-slate-500 uppercase shrink-0 w-16 font-bold text-[10px]">${log.level}</span>
-                                <span class="${color}">${log.message}</span>
-                            </div>
-                        `;
-                    }).join('') :
-                    pipelineState.pipelineLogs.map(l => `<div class="mb-2 font-mono text-[11px] flex gap-3 leading-relaxed"><span class="text-slate-600 font-bold shrink-0">[${l.timestamp}]</span> <span class="${l.level === 'SUCCESS' ? 'text-blue-400 font-bold' : l.level === 'ERROR' ? 'text-rose-500 font-bold' : l.level === 'WARNING' ? 'text-amber-500 font-bold' : 'text-slate-400'}">${l.message}</span></div>`).join('');
+                const logsSource = this.terminalMode === 'scan'
+                    ? pipelineState.terminalLogs
+                    : (pipelineState.pipelineLogs || []);
 
-                // Only update if content changed or for the first time
-                if (body.innerHTML !== logsHTML) {
-                    body.innerHTML = logsHTML || `<div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Awaiting directives...</div>`;
+                const logsHTML = logsSource.map(log => {
+                    const level = log.level || 'INFO';
+                    const msg = (log.message || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const time = log.timestamp || '';
+                    let color = 'text-emerald-400';
+                    if (level === 'WARNING') color = 'text-amber-400';
+                    if (level === 'ERROR') color = 'text-rose-500';
+                    if (level === 'SUCCESS') color = 'text-blue-400';
+                    return `<div class="mb-1.5 font-mono text-xs flex gap-3 leading-relaxed">
+                        <span class="text-slate-700 shrink-0 font-bold w-[4rem]">[${time}]</span>
+                        <span class="uppercase shrink-0 w-14 font-black text-[9px] ${color} opacity-80">${level}</span>
+                        <span class="${color}">${msg}</span>
+                    </div>`;
+                }).join('');
+
+                const placeholder = this.terminalMode === 'scan'
+                    ? '<div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Awaiting scanner directives...</div>'
+                    : '<div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Awaiting automation kernel start...</div>';
+
+                const newContent = logsHTML || placeholder;
+
+                // Only update if content has actually changed
+                if (body.getAttribute('data-log-hash') !== String(logsSource.length)) {
+                    body.setAttribute('data-log-hash', String(logsSource.length));
+                    body.innerHTML = newContent;
+                    // Auto-scroll to bottom on new content
                     body.scrollTop = body.scrollHeight;
                 }
+
+                // Detect all-done state in pipeline mode and show toast once
+                if (this.terminalMode === 'pipeline' && !this._pipelineDoneToastShown) {
+                    const allDone = pipelineState.vulnerabilities.length > 0 &&
+                        pipelineState.vulnerabilities.every(v => v.status === 'FIXED' || v.status === 'VALIDATED' || v.status === 'FAILED');
+                    const noPipeline = !pipelineState.activeJob && pipelineState.queue && pipelineState.queue.length === 0;
+                    if (allDone && noPipeline) {
+                        this._pipelineDoneToastShown = true;
+                        this.showToast('✅ All vulnerabilities processed. Pipeline complete!', 'emerald');
+                    }
+                }
+                // Reset flag when new jobs come in
+                if (pipelineState.activeJob || (pipelineState.queue && pipelineState.queue.length > 0)) {
+                    this._pipelineDoneToastShown = false;
+                }
+            },
+
+            showToast(message, color = 'blue') {
+                // Remove any existing toast
+                const existing = document.getElementById('seclab-toast');
+                if (existing) existing.remove();
+
+                const toast = document.createElement('div');
+                toast.id = 'seclab-toast';
+                toast.className = `fixed bottom-8 left-1/2 -translate-x-1/2 z-[200] px-8 py-4 rounded-2xl glass border border-${color}-500/40 text-${color}-300 font-black text-sm shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-center gap-3 transition-all duration-500 opacity-0`;
+                toast.innerHTML = `<span>${message}</span>`;
+                document.body.appendChild(toast);
+                requestAnimationFrame(() => { toast.style.opacity = '1'; });
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    setTimeout(() => toast.remove(), 600);
+                }, 5000);
             },
 
             updateVulnsDynamic(el) {
@@ -1318,47 +1363,48 @@
                 `;
             },
 
+            // Called once when navigating to terminal - builds static shell
             renderTerminal(el) {
-                const logs = pipelineState.terminalLogs.map(log => {
-                    let color = 'text-emerald-500';
-                    const level = log.level || 'INFO';
-                    const msg = log.message || '';
-                    const time = log.timestamp || '';
-
-                    if (level === 'WARNING') color = 'text-amber-400';
-                    if (level === 'ERROR') color = 'text-red-500';
-                    if (level === 'SUCCESS') color = 'text-blue-400';
-
-                    return `
-                        <div class="mb-1 font-mono text-xs flex gap-3 whitespace-pre-wrap">
-                            <span class="text-slate-600 shrink-0 font-bold">[${time}]</span>
-                            <span class="text-slate-500 uppercase shrink-0 w-16 font-bold text-[10px]">${level}</span>
-                            <span class="${color}">${msg}</span>
-                        </div>
-                    `;
-                }).join('');
-
                 el.innerHTML = `
                     <div class="h-full flex flex-col glass rounded-3xl border border-white/10 overflow-hidden shadow-[0_20px_50px_-15px_rgba(0,0,0,0.5)]">
                         <div class="bg-black/60 backdrop-blur-xl px-6 py-4 border-b border-white/10 flex items-center justify-between shadow-md">
                             <div class="flex items-center gap-6">
-                                <button onclick="app.terminalMode='scan'" class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 ${app.terminalMode === 'scan' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}">Scanner Logic</button>
-                                <button onclick="app.terminalMode='pipeline'" class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 ${app.terminalMode === 'pipeline' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}">Automation Kernel</button>
+                                <button id="term-tab-scan"
+                                    onclick="app.switchTerminalMode('scan')"
+                                    class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 text-blue-400 border-b-2 border-blue-500">
+                                    Scanner Logic
+                                </button>
+                                <button id="term-tab-pipeline"
+                                    onclick="app.switchTerminalMode('pipeline')"
+                                    class="text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 text-slate-500 hover:text-white">
+                                    Automation Kernel
+                                </button>
                             </div>
                             <div class="text-[9px] text-slate-600 font-black uppercase tracking-[0.3em] flex items-center gap-2">
                                 <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse block"></span> Live Shell Console
                             </div>
                         </div>
-                        <div id="terminal-body" class="flex-1 p-8 overflow-y-auto custom-scrollbar font-mono bg-[#050505] inset-shadow-inner border-t border-black">
-                            ${app.terminalMode === 'scan' ? (logs || '<div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Initialize scanner module...</div>') :
-                        (pipelineState.pipelineLogs.map(l => `<div class="mb-2 font-mono text-[11px] flex gap-3 leading-relaxed"><span class="text-slate-600 font-bold shrink-0">[${l.timestamp}]</span> <span class="${l.level === 'SUCCESS' ? 'text-blue-400 font-bold' : l.level === 'ERROR' ? 'text-rose-500 font-bold' : l.level === 'WARNING' ? 'text-amber-500 font-bold' : 'text-slate-400'}">${l.message}</span></div>`).join('') || '<div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Awaiting pipeline directives...</div>')}
+                        <div id="terminal-body" class="flex-1 p-8 overflow-y-auto custom-scrollbar font-mono bg-[#050505] border-t border-black">
+                            <div class="text-slate-700 animate-pulse font-bold tracking-widest">_ Initializing console...</div>
                         </div>
                     </div>
                 `;
+                // Populate with correct segment on first render
+                this.updateTerminalLogs();
+            },
 
-                // Auto scroll
-                const term = document.getElementById('terminal-body');
-                if (term) term.scrollTop = term.scrollHeight;
+            // Switch segment WITHOUT re-rendering the shell
+            switchTerminalMode(mode) {
+                this.terminalMode = mode;
+                const scanBtn = document.getElementById('term-tab-scan');
+                const pipeBtn = document.getElementById('term-tab-pipeline');
+                if (scanBtn) {
+                    scanBtn.className = `text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 ${mode === 'scan' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}`;
+                }
+                if (pipeBtn) {
+                    pipeBtn.className = `text-[11px] font-black uppercase tracking-[0.2em] transition-all relative pb-2 ${mode === 'pipeline' ? 'text-blue-400 border-b-2 border-blue-500' : 'text-slate-500 hover:text-white'}`;
+                }
+                this.updateTerminalLogs();
             },
 
             renderWebsiteScanner(el) {
